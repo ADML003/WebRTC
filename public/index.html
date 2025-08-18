@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🖥️ WebRTC Object Detection Viewer</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        background: #111;
+        color: white;
+      }
+      .header {
+        background: rgba(0, 0, 0, 0.9);
+        padding: 15px;
+        text-align: center;
+        border-bottom: 1px solid #333;
+      }
+      .container {
+        position: relative;
+        width: 100vw;
+        height: calc(100vh - 80px);
+        overflow: hidden;
+      }
+      #video {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        background: #000;
+      }
+      #canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+      .controls {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .btn {
+        padding: 10px 15px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        border: 1px solid #555;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      .btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .btn.connected {
+        background: #006600;
+        border-color: #00aa00;
+      }
+      .phone-list {
+        background: rgba(0, 0, 0, 0.8);
+        border: 1px solid #555;
+        border-radius: 5px;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+      .phone-item {
+        padding: 10px;
+        cursor: pointer;
+        border-bottom: 1px solid #333;
+      }
+      .phone-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .phone-item:last-child {
+        border-bottom: none;
+      }
+      .metrics {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 15px;
+        border-radius: 5px;
+        font-size: 12px;
+        border: 1px solid #555;
+      }
+      .status {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 15px;
+        border-radius: 5px;
+        border: 1px solid #555;
+      }
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h2>🖥️ WebRTC Object Detection Viewer</h2>
+      <p>
+        Receive live video from phone and perform real-time AI object detection
+      </p>
+    </div>
+
+    <div class="container">
+      <video id="video" playsinline></video>
+      <canvas id="canvas"></canvas>
+
+      <div class="controls">
+        <button id="refreshBtn" class="btn">🔄 Refresh Phones</button>
+
+        <div id="phoneList" class="phone-list hidden">
+          <div class="phone-item">No phones available</div>
+        </div>
+
+        <button id="disconnectBtn" class="btn hidden">❌ Disconnect</button>
+      </div>
+
+      <div class="status" id="status">
+        <div><strong>Status:</strong> Ready</div>
+        <div id="connectionInfo">No connection</div>
+      </div>
+
+      <div class="metrics" id="metrics">
+        <div><strong>Performance:</strong></div>
+        <div>FPS: <span id="fps">0</span></div>
+        <div>Latency: <span id="latency">0</span>ms</div>
+        <div>Objects: <span id="objects">0</span></div>
+        <div>Frames: <span id="frames">0</span></div>
+      </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
