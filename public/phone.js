@@ -17,6 +17,35 @@ class PhoneCamera {
     this.connectToServer();
   }
 
+  isIOSDevice() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+
+  waitForIceGatheringComplete() {
+    return new Promise((resolve) => {
+      if (this.peerConnection.iceGatheringState === 'complete') {
+        resolve();
+        return;
+      }
+      
+      const checkState = () => {
+        if (this.peerConnection.iceGatheringState === 'complete') {
+          this.peerConnection.removeEventListener('icegatheringstatechange', checkState);
+          resolve();
+        }
+      };
+      
+      this.peerConnection.addEventListener('icegatheringstatechange', checkState);
+      
+      // Fallback timeout after 3 seconds
+      setTimeout(() => {
+        this.peerConnection.removeEventListener('icegatheringstatechange', checkState);
+        resolve();
+      }, 3000);
+    });
+  }
+
   setupEventListeners() {
     this.startBtn.onclick = () => this.startCamera();
     this.connectBtn.onclick = () => this.waitForConnection();
@@ -127,7 +156,31 @@ class PhoneCamera {
 
   async handleOffer(data) {
     try {
+      console.log('🚀 HANDLE OFFER CALLED - ENHANCED DEBUGGING v2.0');
+      console.log('📡 Offer data:', data);
+      
       this.status.textContent = "Connecting to browser...";
+
+      // Critical check: Ensure camera is started
+      if (!this.localStream) {
+        console.error('❌ CRITICAL ERROR: No local stream available! Camera must be started first.');
+        this.status.textContent = "ERROR: Start camera first!";
+        return;
+      }
+
+      const videoTracks = this.localStream.getVideoTracks();
+      if (videoTracks.length === 0) {
+        console.error('❌ CRITICAL ERROR: No video tracks in local stream!');
+        this.status.textContent = "ERROR: No video tracks!";
+        return;
+      }
+
+      console.log('✅ Pre-connection check passed:', {
+        hasStream: !!this.localStream,
+        videoTracks: videoTracks.length,
+        audioTracks: this.localStream.getAudioTracks().length,
+        streamActive: this.localStream.active
+      });
 
       // Remove connection instruction if present
       const instruction = document.getElementById("connection-instruction");
@@ -135,19 +188,121 @@ class PhoneCamera {
         instruction.remove();
       }
 
-      // Create peer connection
+      // Create peer connection with TURN servers for NAT traversal
       this.peerConnection = new RTCPeerConnection({
         iceServers: [
+          // Free STUN servers
           { urls: "stun:stun.l.google.com:19302" },
           { urls: "stun:stun1.l.google.com:19302" },
+          { urls: "stun:stun2.l.google.com:19302" },
+          { urls: "stun:stun.services.mozilla.com" },
+          // Multiple TURN servers for better reliability
+          {
+            urls: "turn:openrelay.metered.ca:80",
+            username: "openrelayproject",
+            credential: "openrelayproject",
+          },
+          {
+            urls: "turn:openrelay.metered.ca:443",
+            username: "openrelayproject", 
+            credential: "openrelayproject",
+          },
+          {
+            urls: "turn:openrelay.metered.ca:443?transport=tcp",
+            username: "openrelayproject",
+            credential: "openrelayproject",
+          },
+          // Additional free TURN servers
+          {
+            urls: "turn:relay.metered.ca:80",
+            username: "e8348e4d9c62d3e36c996bcf",
+            credential: "P6s8Q1gKNp7r2hXp",
+          },
+          {
+            urls: "turn:relay.metered.ca:443",
+            username: "e8348e4d9c62d3e36c996bcf",
+            credential: "P6s8Q1gKNp7r2hXp",
+          },
         ],
+        iceCandidatePoolSize: 10,
+        bundlePolicy: "balanced",
+        rtcpMuxPolicy: "require",
+        iceTransportPolicy: "all", // Allow both STUN and TURN
       });
 
-      // Add local stream
-      if (this.localStream) {
-        this.localStream.getTracks().forEach((track) => {
-          this.peerConnection.addTrack(track, this.localStream);
+      // Add local stream (this should never fail now due to pre-checks)
+      console.log('🔄 Adding tracks to peer connection...');
+      console.log('📹 Stream details:', {
+        id: this.localStream.id,
+        active: this.localStream.active,
+        tracks: this.localStream.getTracks().length
+      });
+      
+      let trackCount = 0;
+      this.localStream.getTracks().forEach((track) => {
+        console.log(`📹 Adding track ${trackCount + 1}:`, {
+          kind: track.kind,
+          enabled: track.enabled,
+          readyState: track.readyState,
+          id: track.id
         });
+        
+        const sender = this.peerConnection.addTrack(track, this.localStream);
+        console.log('📹 Track sender:', sender);
+        trackCount++;
+      });
+      
+      console.log(`✅ Successfully added ${trackCount} tracks to peer connection`);
+
+      // Mobile browser fix: Force transceivers for better compatibility
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        console.log('📱 Mobile device detected - applying compatibility fixes');
+        console.log('📱 User Agent:', navigator.userAgent);
+        
+        // Clear existing senders first
+        const senders = this.peerConnection.getSenders();
+        console.log('📱 Existing senders before cleanup:', senders.length);
+        
+        for (const sender of senders) {
+          if (sender.track) {
+            console.log('📱 Removing existing sender:', sender.track.kind);
+            this.peerConnection.removeTrack(sender);
+          }
+        }
+        
+        // Add transceivers explicitly for mobile browsers
+        if (this.localStream.getVideoTracks().length > 0) {
+          const videoTrack = this.localStream.getVideoTracks()[0];
+          console.log('📱 Adding video transceiver for track:', {
+            kind: videoTrack.kind,
+            enabled: videoTrack.enabled,
+            readyState: videoTrack.readyState,
+            id: videoTrack.id
+          });
+          
+          const transceiver = this.peerConnection.addTransceiver(videoTrack, {
+            direction: 'sendonly',
+            streams: [this.localStream]
+          });
+          console.log('📱 Mobile: Added video transceiver:', transceiver.direction);
+        }
+        
+        if (this.localStream.getAudioTracks().length > 0) {
+          const audioTrack = this.localStream.getAudioTracks()[0];
+          console.log('📱 Adding audio transceiver for track:', {
+            kind: audioTrack.kind,
+            enabled: audioTrack.enabled,
+            readyState: audioTrack.readyState,
+            id: audioTrack.id
+          });
+          
+          const transceiver = this.peerConnection.addTransceiver(audioTrack, {
+            direction: 'sendonly',
+            streams: [this.localStream]
+          });
+          console.log('📱 Mobile: Added audio transceiver:', transceiver.direction);
+        }
       }
 
       // Handle ICE candidates
@@ -200,7 +355,29 @@ class PhoneCamera {
 
       // Set remote description and create answer
       await this.peerConnection.setRemoteDescription(data.offer);
-      const answer = await this.peerConnection.createAnswer();
+
+      // Mobile browser fix: Wait for ICE gathering before creating answer
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        console.log('📱 Mobile: Waiting for ICE gathering to complete...');
+        await this.waitForIceGatheringComplete();
+      }
+
+      const answer = await this.peerConnection.createAnswer({
+        offerToReceiveAudio: false,
+        offerToReceiveVideo: false
+      });
+      
+      console.log('📱 Created answer with SDP:', answer.sdp ? 'Present' : 'Missing');
+      
+      // Debug: Check if SDP contains video tracks
+      if (answer.sdp) {
+        const hasVideo = answer.sdp.includes('m=video');
+        const hasAudio = answer.sdp.includes('m=audio');
+        console.log('📱 SDP Analysis:', { hasVideo, hasAudio });
+        console.log('📱 SDP Sample:', answer.sdp.substring(0, 200) + '...');
+      }
+      
       await this.peerConnection.setLocalDescription(answer);
 
       // Send answer back
