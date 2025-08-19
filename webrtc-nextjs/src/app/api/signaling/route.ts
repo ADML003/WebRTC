@@ -17,13 +17,13 @@ interface Device {
   timestamp: number;
 }
 
-// In-memory storage (use Redis/DB in production)
+// In-memory storage (Note: This will be reset on each serverless function call on Vercel)
+// For production, use Redis or a database for persistent storage
 const sessions = new Map<string, Session>();
 const devices = new Map<string, Device>();
 
-
-// Cleanup old sessions every 5 minutes
-setInterval(() => {
+// Cleanup function - called manually instead of setInterval (which doesn't work on Vercel)
+function cleanupExpiredData() {
   const now = Date.now();
   const maxAge = 5 * 60 * 1000; // 5 minutes
   
@@ -38,10 +38,13 @@ setInterval(() => {
       devices.delete(id);
     }
   }
-}, 5 * 60 * 1000);
+}
 
 export async function POST(request: Request) {
   try {
+    // Clean up expired data on each request (since setInterval doesn't work on Vercel)
+    cleanupExpiredData();
+    
     const body = await request.json();
     const { type, data, sessionId, deviceId } = body;
 
@@ -103,6 +106,9 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
+    // Clean up expired data on each request (since setInterval doesn't work on Vercel)
+    cleanupExpiredData();
+    
     const url = new URL(request.url);
     const type = url.searchParams.get('type');
     const sessionId = url.searchParams.get('sessionId');
