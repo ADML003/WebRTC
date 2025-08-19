@@ -1,96 +1,119 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
 
 export default function PhoneCamera() {
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [phoneId, setPhoneId] = useState<string>('');
-  const [status, setStatus] = useState('Ready to connect');
+  const [status, setStatus] = useState('Ready to start camera');
+  const [showInstructions, setShowInstructions] = useState(true);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [showInstructions, setShowInstructions] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Handle client-side mounting to prevent hydration mismatch
   useEffect(() => {
-    const newSocket = io();
-    setSocket(newSocket);
-
-    newSocket.on('connect', () => {
-      console.log('📱 Connected to server');
-      newSocket.emit('phone-connect', {});
-    });
-
-    newSocket.on('phone-connected', (data) => {
-      setPhoneId(data.phoneId);
-      setStatus('Connected to server');
-      console.log('📱 Phone registered:', data.phoneId);
-    });
-
-    newSocket.on('webrtc-offer', async (data) => {
-      console.log('📡 Received WebRTC offer from browser');
-      await handleOffer(data);
-    });
-
-    newSocket.on('webrtc-ice-candidate', (data) => {
-      handleIceCandidate(data);
-    });
-
-    return () => {
-      stopStream();
-      newSocket.disconnect();
-    };
+    setIsClient(true);
+    const id = 'phone_' + Math.random().toString(36).substr(2, 9);
+    setPhoneId(id);
   }, []);
+
+  // Register phone when ID is available
+  useEffect(() => {
+    if (!phoneId || !isClient) return;
+
+    const registerPhone = async () => {
+      try {
+        await fetch('/api/signaling', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'register',
+            deviceId: phoneId,
+            data: { deviceType: 'phone' }
+          })
+        });
+        
+        console.log('📱 Phone registered:', phoneId);
+      } catch (error) {
+        console.error('Registration error:', error);
+      }
+    };
+
+    registerPhone();
+  }, [phoneId, isClient]);
 
   const startCamera = async () => {
     try {
       setStatus('Starting camera...');
+      setShowInstructions(false);
 
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const constraints = {
         video: {
           facingMode: 'environment',
           width: { ideal: 1280 },
-          height: { ideal: 720 },
+          height: { ideal: 720 }
         },
-        audio: false,
-      });
+        audio: false
+      };
 
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       localStreamRef.current = stream;
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
 
-      setStatus('Camera ready - waiting for browser connection');
-      console.log('📹 Camera started');
+      setIsStreaming(true);
+      setStatus('Camera started - Waiting for browser connection...');
+
+      // Start polling for WebRTC offers
+      startPollingForOffers();
+
     } catch (error) {
-      console.error('❌ Camera access failed:', error);
-      setStatus('Camera access failed');
-      alert('Camera access failed. Please ensure you have given permission and try again.');
+      console.error('Camera error:', error);
+      setStatus('Failed to start camera. Please allow camera permissions and try again.');
+      setShowInstructions(true);
     }
   };
 
-  const waitForConnection = () => {
-    setStatus('Waiting for browser connection...');
-    setShowInstructions(true);
-    console.log('📱 Ready for WebRTC connection. Phone ID:', phoneId);
+  const startPollingForOffers = () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+
+    pollingIntervalRef.current = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/signaling?type=poll-offer&deviceId=${phoneId}`);
+        const data = await response.json();
+
+        if (data.offer && data.sessionId) {
+          console.log('📡 Received WebRTC offer from browser');
+          await handleOffer(data);
+        }
+      } catch (error) {
+        console.error('Error polling for offers:', error);
+      }
+    }, 1000); // Poll every second
   };
 
-  const handleOffer = async (data: any) => {
+  const handleOffer = async (data: { offer: RTCSessionDescriptionInit; sessionId: string; browser: string }) => {
     try {
       setStatus('Connecting to browser...');
-      setShowInstructions(false);
 
-      // Create peer connection with TURN servers for NAT traversal
+      if (!localStreamRef.current) {
+        setStatus('ERROR: Start camera first!');
+        return;
+      }
+
+      // Create peer connection
       const peerConnection = new RTCPeerConnection({
         iceServers: [
-          // Free STUN servers
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-          { urls: 'stun:stun.services.mozilla.com' },
-          // Free TURN servers (these help with NAT traversal)
           {
             urls: 'turn:openrelay.metered.ca:80',
             username: 'openrelayproject',
@@ -98,61 +121,51 @@ export default function PhoneCamera() {
           },
           {
             urls: 'turn:openrelay.metered.ca:443',
-            username: 'openrelayproject', 
-            credential: 'openrelayproject',
-          },
-          {
-            urls: 'turn:openrelay.metered.ca:443?transport=tcp',
             username: 'openrelayproject',
             credential: 'openrelayproject',
           },
         ],
-        iceCandidatePoolSize: 10,
-        bundlePolicy: 'max-bundle',
-        rtcpMuxPolicy: 'require',
-        iceTransportPolicy: 'all', // Allow both STUN and TURN
+        bundlePolicy: 'balanced',
+        iceTransportPolicy: 'all',
       });
 
       peerConnectionRef.current = peerConnection;
 
-      // Add local stream
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach((track) => {
-          peerConnection.addTrack(track, localStreamRef.current!);
-        });
-      }
+      // Add local stream tracks
+      localStreamRef.current.getTracks().forEach((track) => {
+        console.log('📹 Adding track to peer connection:', track.kind);
+        peerConnection.addTrack(track, localStreamRef.current!);
+      });
 
       // Handle ICE candidates
-      peerConnection.onicecandidate = (event) => {
-        if (event.candidate && socket) {
-          console.log('📡 Sending ICE candidate:', event.candidate.type, event.candidate.candidate);
-          socket.emit('webrtc-ice-candidate', {
-            targetId: data.fromId,
-            candidate: event.candidate,
-          });
-        } else if (!event.candidate) {
-          console.log('📡 ICE gathering completed');
+      peerConnection.onicecandidate = async (event) => {
+        if (event.candidate) {
+          try {
+            await fetch('/api/signaling', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'ice-candidate',
+                sessionId: data.sessionId,
+                deviceId: phoneId,
+                data: { candidate: event.candidate }
+              })
+            });
+          } catch (error) {
+            console.error('Error sending ICE candidate:', error);
+          }
         }
       };
 
-      // Handle ICE gathering state
-      peerConnection.onicegatheringstatechange = () => {
-        console.log('🧊 ICE gathering state:', peerConnection.iceGatheringState);
-      };
-
-      // Handle connection state
+      // Handle connection state changes
       peerConnection.onconnectionstatechange = () => {
         const state = peerConnection.connectionState;
-        console.log('📡 Connection state:', state);
-
+        console.log('🔗 Connection state:', state);
+        
         if (state === 'connected') {
-          setStatus('Streaming to browser!');
-          setIsStreaming(true);
-        } else if (state === 'connecting') {
-          setStatus('Establishing connection...');
-        } else if (state === 'disconnected' || state === 'failed') {
-          setStatus('Connection lost');
-          setIsStreaming(false);
+          setStatus('Connected to browser! 📹');
+        } else if (state === 'failed' || state === 'disconnected') {
+          setStatus('Connection lost - Waiting for new connection...');
         }
       };
 
@@ -162,116 +175,158 @@ export default function PhoneCamera() {
       await peerConnection.setLocalDescription(answer);
 
       // Send answer back
-      if (socket) {
-        socket.emit('webrtc-answer', {
-          targetId: data.fromId,
-          answer: answer,
+      const response = await fetch('/api/signaling', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'answer',
           sessionId: data.sessionId,
-        });
+          deviceId: phoneId,
+          data: { answer }
+        })
+      });
+
+      if (response.ok) {
+        console.log('📡 WebRTC answer sent to browser');
+        setStatus('Connected to browser! 📹');
+      } else {
+        throw new Error('Failed to send answer');
       }
 
-      console.log('📡 WebRTC answer sent');
     } catch (error) {
-      console.error('❌ WebRTC setup failed:', error);
-      setStatus('Connection failed - try again');
-    }
-  };
-
-  const handleIceCandidate = (data: any) => {
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current
-        .addIceCandidate(data.candidate)
-        .then(() => console.log('📡 ICE candidate added'))
-        .catch((err) => console.error('❌ ICE candidate error:', err));
+      console.error('Error handling offer:', error);
+      setStatus('Connection failed');
     }
   };
 
   const stopStream = () => {
-    setIsStreaming(false);
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
+    }
 
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close();
       peerConnectionRef.current = null;
     }
 
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => track.stop());
-      localStreamRef.current = null;
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
     }
 
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
 
-    setStatus('Stream stopped');
-    setShowInstructions(false);
-    console.log('⏹️ Stream stopped');
+    setIsStreaming(false);
+    setStatus('Camera stopped');
+    setShowInstructions(true);
   };
 
-  return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
-      <div className="bg-black/80 p-3 text-center z-10">
-        <h2 className="text-lg font-bold">📱 Phone Camera Stream</h2>
-        <p className="text-sm">Share your camera with browser for AI detection</p>
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopStream();
+    };
+  }, []);
+
+  // Show loading state during hydration to prevent mismatch
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white p-4">
+        <div className="max-w-2xl mx-auto">
+          <h1 className="text-3xl font-bold text-center mb-6">
+            📱 Phone Camera
+          </h1>
+          <div className="flex justify-center items-center h-64">
+            <div className="text-xl">Loading...</div>
+          </div>
+        </div>
       </div>
+    );
+  }
 
-      <div className="relative flex-1 overflow-hidden">
-        <video
-          ref={videoRef}
-          className="w-full h-full object-cover"
-          autoPlay
-          muted
-          playsInline
-        />
-
-        <div className="absolute top-5 left-5 bg-black/70 p-2 rounded text-xs">
-          Phone ID: {phoneId.substring(0, 8)}...
+  return (
+    <div className="min-h-screen bg-gray-900 text-white p-4">
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-3xl font-bold text-center mb-6">
+          📱 Phone Camera
+        </h1>
+        
+        <div className="bg-gray-800 rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">Status</h2>
+          <p className="text-lg mb-4">{status}</p>
+          <p className="text-sm text-gray-400 font-mono">Phone ID: {phoneId}</p>
         </div>
 
-        <div className="absolute top-5 right-5 bg-black/70 p-2 rounded text-xs">
-          {status}
+        {/* Camera Preview */}
+        <div className="bg-gray-800 rounded-lg p-6 mb-6">
+          <h3 className="text-lg font-semibold mb-4">📹 Camera Preview</h3>
+          <div className="relative bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover"
+            />
+            {!isStreaming && (
+              <div className="absolute inset-0 flex items-center justify-center text-gray-500">
+                <div className="text-center">
+                  <div className="text-4xl mb-2">📷</div>
+                  <div>Camera not started</div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
+        {/* Controls */}
+        <div className="bg-gray-800 rounded-lg p-6 mb-6">
+          <div className="flex gap-4">
+            {!isStreaming ? (
+              <button
+                onClick={startCamera}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg text-lg"
+              >
+                📹 Start Camera
+              </button>
+            ) : (
+              <button
+                onClick={stopStream}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg text-lg"
+              >
+                ⏹️ Stop Camera
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Instructions */}
         {showInstructions && (
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-100 text-black p-4 rounded-lg max-w-sm">
-            <strong className="block mb-2">📋 Next Steps:</strong>
-            <div className="text-sm space-y-1">
-              <div>1. Open the browser viewer on your computer</div>
-              <div>2. Click "Connect to Phone"</div>
-              <div>3. Select your phone ID: <code className="bg-gray-200 px-1 rounded">{phoneId.substring(0, 8)}...</code></div>
-              <div>4. Wait for connection to establish</div>
-            </div>
+          <div className="bg-blue-900 border border-blue-700 rounded-lg p-6">
+            <h3 className="text-lg font-semibold mb-4">📋 Instructions</h3>
+            <ol className="list-decimal list-inside space-y-2 text-sm">
+              <li>Click &quot;Start Camera&quot; to begin streaming</li>
+              <li>Allow camera permissions when prompted</li>
+              <li>Open the browser viewer page on your computer</li>
+              <li>Your phone should appear in the available devices list</li>
+              <li>Click &quot;Connect&quot; on the browser to establish connection</li>
+              <li>Your camera feed should appear on the browser</li>
+            </ol>
           </div>
         )}
 
-        <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 z-10">
-          {!localStreamRef.current && (
-            <button
-              onClick={startCamera}
-              className="px-6 py-3 bg-black/70 text-white rounded-full text-lg min-w-[120px] active:bg-white/20"
-            >
-              Start Camera
-            </button>
-          )}
-
-          {localStreamRef.current && !isStreaming && (
-            <button
-              onClick={waitForConnection}
-              className="px-6 py-3 bg-black/70 text-white rounded-full text-lg min-w-[120px] active:bg-white/20"
-            >
-              Connect to Browser
-            </button>
-          )}
-
-          {isStreaming && (
-            <button
-              onClick={stopStream}
-              className="px-6 py-3 bg-red-600 text-white rounded-full text-lg min-w-[120px] active:bg-red-700"
-            >
-              Stop Stream
-            </button>
-          )}
-        </div>
+        {isStreaming && (
+          <div className="bg-green-900 border border-green-700 rounded-lg p-6">
+            <h3 className="text-lg font-semibold mb-2">✅ Camera Active</h3>
+            <p className="text-sm">
+              Your camera is now active and ready to connect to browsers. 
+              Keep this page open while using the browser viewer.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

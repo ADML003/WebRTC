@@ -1,0 +1,14 @@
+{
+  "builds": [
+    {
+      "src": "webrtc-nextjs/package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/webrtc-nextjs/$1"
+    }
+  ]
+}
