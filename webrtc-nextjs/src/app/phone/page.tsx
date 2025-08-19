@@ -234,13 +234,19 @@ export default function PhoneCamera() {
   // Show loading state during hydration to prevent mismatch
   if (!isClient) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white p-4">
-        <div className="max-w-2xl mx-auto">
-          <h1 className="text-3xl font-bold text-center mb-6">
-            📱 Phone Camera
-          </h1>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white p-3 md:p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-6">
+            <h1 className="text-2xl md:text-4xl font-bold bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent mb-2">
+              📱 Phone Camera
+            </h1>
+            <p className="text-gray-400 text-sm md:text-base">Stream your camera to the browser</p>
+          </div>
           <div className="flex justify-center items-center h-64">
-            <div className="text-xl">Loading...</div>
+            <div className="text-center">
+              <div className="animate-spin text-4xl mb-4">⚡</div>
+              <div className="text-xl">Loading...</div>
+            </div>
           </div>
         </div>
       </div>
@@ -248,22 +254,48 @@ export default function PhoneCamera() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-4">
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold text-center mb-6">
-          📱 Phone Camera
-        </h1>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white p-3 md:p-6">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-6">
+          <h1 className="text-2xl md:text-4xl font-bold bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent mb-2">
+            📱 Phone Camera
+          </h1>
+          <p className="text-gray-400 text-sm md:text-base">Stream your camera to the browser</p>
+        </div>
         
-        <div className="bg-gray-800 rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Status</h2>
-          <p className="text-lg mb-4">{status}</p>
-          <p className="text-sm text-gray-400 font-mono">Phone ID: {phoneId}</p>
+        {/* Status Card - Compact and mobile-optimized */}
+        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-3 h-3 rounded-full ${isStreaming ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`}></div>
+              <span className="text-sm md:text-base font-medium">{status}</span>
+            </div>
+            {isStreaming && (
+              <div className="flex items-center gap-2 text-green-400">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-xs">LIVE</span>
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-gray-400 font-mono mt-2">ID: {phoneId}</p>
         </div>
 
-        {/* Camera Preview */}
-        <div className="bg-gray-800 rounded-lg p-6 mb-6">
-          <h3 className="text-lg font-semibold mb-4">📹 Camera Preview</h3>
-          <div className="relative bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
+        {/* Camera Preview - Much wider and more prominent */}
+        <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700 rounded-2xl p-3 md:p-6 mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg md:text-2xl font-semibold flex items-center gap-2">
+              📹 <span>Camera Preview</span>
+            </h3>
+            {isStreaming && (
+              <div className="flex items-center gap-2 text-green-400">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-sm">STREAMING</span>
+              </div>
+            )}
+          </div>
+          
+          {/* Wider camera container - takes full width */}
+          <div className="relative bg-black rounded-xl overflow-hidden shadow-2xl" style={{ aspectRatio: '4/3' }}>
             <video
               ref={videoRef}
               autoPlay
@@ -272,58 +304,89 @@ export default function PhoneCamera() {
               className="w-full h-full object-cover"
             />
             {!isStreaming && (
-              <div className="absolute inset-0 flex items-center justify-center text-gray-500">
-                <div className="text-center">
-                  <div className="text-4xl mb-2">📷</div>
-                  <div>Camera not started</div>
+              <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                <div className="text-center p-6">
+                  <div className="text-5xl md:text-7xl mb-4 opacity-50">📷</div>
+                  <div className="text-lg md:text-xl mb-2">Camera not started</div>
+                  <div className="text-sm text-gray-500">Tap the button below to begin</div>
                 </div>
               </div>
+            )}
+            {/* Camera overlay effects */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-black/20 pointer-events-none"></div>
+            
+            {/* Corner indicators */}
+            {isStreaming && (
+              <>
+                <div className="absolute top-3 left-3 w-4 h-4 border-l-2 border-t-2 border-green-400/50"></div>
+                <div className="absolute top-3 right-3 w-4 h-4 border-r-2 border-t-2 border-green-400/50"></div>
+                <div className="absolute bottom-3 left-3 w-4 h-4 border-l-2 border-b-2 border-green-400/50"></div>
+                <div className="absolute bottom-3 right-3 w-4 h-4 border-r-2 border-b-2 border-green-400/50"></div>
+              </>
             )}
           </div>
         </div>
 
-        {/* Controls */}
-        <div className="bg-gray-800 rounded-lg p-6 mb-6">
-          <div className="flex gap-4">
+        {/* Controls - Large, mobile-friendly buttons */}
+        <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700 rounded-2xl p-4 mb-4">
+          <div className="flex gap-3">
             {!isStreaming ? (
               <button
                 onClick={startCamera}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg text-lg"
+                className="flex-1 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white font-bold py-4 px-6 rounded-xl text-base md:text-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
               >
-                📹 Start Camera
+                <span className="flex items-center justify-center gap-2">
+                  📹 <span>Start Camera</span>
+                </span>
               </button>
             ) : (
               <button
                 onClick={stopStream}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg text-lg"
+                className="flex-1 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white font-bold py-4 px-6 rounded-xl text-base md:text-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
               >
-                ⏹️ Stop Camera
+                <span className="flex items-center justify-center gap-2">
+                  ⏹️ <span>Stop Camera</span>
+                </span>
               </button>
             )}
           </div>
         </div>
 
-        {/* Instructions */}
+        {/* Instructions - Compact and mobile-optimized */}
         {showInstructions && (
-          <div className="bg-blue-900 border border-blue-700 rounded-lg p-6">
-            <h3 className="text-lg font-semibold mb-4">📋 Instructions</h3>
-            <ol className="list-decimal list-inside space-y-2 text-sm">
-              <li>Click &quot;Start Camera&quot; to begin streaming</li>
-              <li>Allow camera permissions when prompted</li>
-              <li>Open the browser viewer page on your computer</li>
-              <li>Your phone should appear in the available devices list</li>
-              <li>Click &quot;Connect&quot; on the browser to establish connection</li>
-              <li>Your camera feed should appear on the browser</li>
-            </ol>
+          <div className="bg-blue-900/20 border border-blue-700/30 rounded-2xl p-4">
+            <h3 className="text-base font-semibold mb-3 flex items-center gap-2 text-blue-300">
+              ⚡ <span>Quick Start</span>
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-blue-200/80">
+              <div className="flex items-start gap-2">
+                <span className="text-blue-400 font-bold">1.</span>
+                <span>Tap &quot;Start Camera&quot; above</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-blue-400 font-bold">2.</span>
+                <span>Allow camera permissions</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-blue-400 font-bold">3.</span>
+                <span>Open browser viewer on computer</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-blue-400 font-bold">4.</span>
+                <span>Click Connect to stream</span>
+              </div>
+            </div>
           </div>
         )}
 
         {isStreaming && (
-          <div className="bg-green-900 border border-green-700 rounded-lg p-6">
-            <h3 className="text-lg font-semibold mb-2">✅ Camera Active</h3>
-            <p className="text-sm">
-              Your camera is now active and ready to connect to browsers. 
-              Keep this page open while using the browser viewer.
+          <div className="bg-green-900/20 border border-green-700/30 rounded-2xl p-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+              <h3 className="text-base font-semibold text-green-300">Camera Active</h3>
+            </div>
+            <p className="text-sm text-green-200/80">
+              Your camera is streaming and ready for browser connections. Keep this page open!
             </p>
           </div>
         )}

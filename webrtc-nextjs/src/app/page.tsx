@@ -275,91 +275,140 @@ export default function BrowserViewer() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-8">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-8">
-          📹 WebRTC Browser Viewer
-        </h1>
-        
-        <div className="bg-gray-800 rounded-lg p-6 mb-8">
-          <h2 className="text-2xl font-semibold mb-4">Connection Status</h2>
-          <p className="text-lg mb-4">Status: <span className="text-green-400">{connectionStatus}</span></p>
-          {connectedPhone && (
-            <p className="text-lg mb-4">Connected to: <span className="text-blue-400">{connectedPhone}</span></p>
-          )}
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
+            📹 WebRTC Browser Viewer
+          </h1>
+          <p className="text-gray-400 text-lg">Real-time video streaming from your phone</p>
         </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Video Display */}
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h3 className="text-xl font-semibold mb-4">📱 Phone Camera Feed</h3>
-            <div className="relative bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-contain"
-              />
-              {!connectedPhone && (
-                <div className="absolute inset-0 flex items-center justify-center text-gray-500">
-                  <div className="text-center">
-                    <div className="text-4xl mb-2">📱</div>
-                    <div>No phone connected</div>
-                  </div>
-                </div>
-              )}
+        
+        {/* Status Card - Compact */}
+        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-4 mb-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className={`w-3 h-3 rounded-full ${connectedPhone ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`}></div>
+              <span className="font-medium">Status: <span className="text-green-400">{connectionStatus}</span></span>
             </div>
-          </div>
-
-          {/* Phone List */}
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h3 className="text-xl font-semibold mb-4">📱 Available Phones ({availablePhones.length})</h3>
-            <div className="space-y-3">
-              {availablePhones.length === 0 ? (
-                <p className="text-gray-400">No phones available. Make sure a phone has opened the camera page.</p>
-              ) : (
-                availablePhones.map((phoneId) => (
-                  <div key={phoneId} className="flex items-center justify-between bg-gray-700 rounded p-3">
-                    <span className="font-mono text-sm">{phoneId}</span>
-                    <button
-                      onClick={() => connectToPhone(phoneId)}
-                      disabled={isConnecting || connectedPhone === phoneId}
-                      className={`px-4 py-2 rounded font-semibold ${
-                        connectedPhone === phoneId
-                          ? 'bg-green-600 text-white cursor-not-allowed'
-                          : isConnecting
-                          ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                          : 'bg-blue-600 hover:bg-blue-700 text-white'
-                      }`}
-                    >
-                      {connectedPhone === phoneId ? 'Connected' : isConnecting ? 'Connecting...' : 'Connect'}
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-            
             {connectedPhone && (
-              <button
-                onClick={disconnect}
-                className="w-full mt-4 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded"
-              >
-                Disconnect
-              </button>
+              <div className="flex items-center gap-2 text-blue-400">
+                <span className="text-sm">📱 Connected to:</span>
+                <span className="font-mono text-xs bg-blue-500/20 px-2 py-1 rounded">{connectedPhone}</span>
+              </div>
             )}
           </div>
         </div>
 
-        <div className="mt-8 bg-gray-800 rounded-lg p-6">
-          <h3 className="text-xl font-semibold mb-4">📋 Instructions</h3>
-          <ol className="list-decimal list-inside space-y-2 text-gray-300">
-            <li>Open the <strong>/phone</strong> page on your mobile device</li>
-            <li>Allow camera permissions and start the camera</li>
-            <li>The phone should appear in the &quot;Available Phones&quot; list above</li>
-            <li>Click &quot;Connect&quot; to establish a WebRTC connection</li>
-            <li>You should see the phone&apos;s camera feed in the video player</li>
-          </ol>
+        {/* Main Content - Video takes priority */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {/* Video Display - Wider and more prominent */}
+          <div className="xl:col-span-2">
+            <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700 rounded-2xl p-4 md:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl md:text-2xl font-semibold flex items-center gap-2">
+                  📱 <span>Live Camera Feed</span>
+                </h3>
+                {connectedPhone && (
+                  <div className="flex items-center gap-2 text-green-400">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <span className="text-sm">LIVE</span>
+                  </div>
+                )}
+              </div>
+              <div className="relative bg-black rounded-xl overflow-hidden shadow-2xl" style={{ aspectRatio: '16/9' }}>
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                />
+                {!connectedPhone && (
+                  <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                    <div className="text-center p-8">
+                      <div className="text-6xl mb-4 opacity-50">📱</div>
+                      <div className="text-xl mb-2">No phone connected</div>
+                      <div className="text-sm text-gray-500">Connect a phone to see live video</div>
+                    </div>
+                  </div>
+                )}
+                {/* Video overlay effects */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-black/20 pointer-events-none"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Phone List - Compact sidebar */}
+          <div className="xl:col-span-1">
+            <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700 rounded-2xl p-4 md:p-6">
+              <h3 className="text-lg md:text-xl font-semibold mb-4 flex items-center gap-2">
+                📱 <span>Devices ({availablePhones.length})</span>
+              </h3>
+              
+              <div className="space-y-3">
+                {availablePhones.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="text-4xl mb-2 opacity-50">📱</div>
+                    <p className="text-gray-400 text-sm">No phones available</p>
+                    <p className="text-gray-500 text-xs mt-1">Open camera page on your phone</p>
+                  </div>
+                ) : (
+                  availablePhones.map((phoneId) => (
+                    <div key={phoneId} className="bg-gray-700/50 border border-gray-600 rounded-xl p-3 transition-all duration-200 hover:bg-gray-700/70">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-mono text-xs text-gray-300 truncate">{phoneId}</span>
+                        <div className={`w-2 h-2 rounded-full ${connectedPhone === phoneId ? 'bg-green-400' : 'bg-gray-500'}`}></div>
+                      </div>
+                      <button
+                        onClick={() => connectToPhone(phoneId)}
+                        disabled={isConnecting || connectedPhone === phoneId}
+                        className={`w-full py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                          connectedPhone === phoneId
+                            ? 'bg-green-600/20 border border-green-500/30 text-green-400 cursor-not-allowed'
+                            : isConnecting
+                            ? 'bg-gray-600/20 border border-gray-500/30 text-gray-400 cursor-not-allowed'
+                            : 'bg-blue-600/20 border border-blue-500/30 text-blue-400 hover:bg-blue-600/30 hover:border-blue-400/50'
+                        }`}
+                      >
+                        {connectedPhone === phoneId ? '✅ Connected' : isConnecting ? '⏳ Connecting...' : '🔗 Connect'}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+              
+              {connectedPhone && (
+                <button
+                  onClick={disconnect}
+                  className="w-full mt-4 bg-red-600/20 border border-red-500/30 text-red-400 hover:bg-red-600/30 hover:border-red-400/50 font-medium py-2 px-4 rounded-lg transition-all duration-200"
+                >
+                  🔌 Disconnect
+                </button>
+              )}
+            </div>
+
+            {/* Quick Instructions */}
+            <div className="mt-6 bg-blue-900/20 border border-blue-700/30 rounded-2xl p-4">
+              <h4 className="text-sm font-semibold text-blue-300 mb-3 flex items-center gap-2">
+                ⚡ <span>Quick Start</span>
+              </h4>
+              <div className="space-y-2 text-xs text-blue-200/80">
+                <div className="flex items-start gap-2">
+                  <span className="text-blue-400">1.</span>
+                  <span>Open <strong>/phone</strong> on mobile</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-blue-400">2.</span>
+                  <span>Allow camera permissions</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-blue-400">3.</span>
+                  <span>Click Connect above</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
