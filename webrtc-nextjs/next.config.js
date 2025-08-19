@@ -4,8 +4,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Use standalone for Railway deployment
-  output: 'standalone',
+  // Remove standalone - use custom server instead
 };
 
 module.exports = nextConfig;
