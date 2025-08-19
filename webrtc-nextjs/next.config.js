@@ -1,10 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Disable image optimization for better Vercel compatibility
+  // Disable image optimization for better compatibility
   images: {
     unoptimized: true,
   },
-  // Enable static export for better deployment
+  // Use standalone for Railway deployment
   output: 'standalone',
 };
 

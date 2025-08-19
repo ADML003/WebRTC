@@ -1,0 +1,8 @@
+[build]
+command = "npm run build"
+
+[deploy]
+startCommand = "npm start"
+
+[[services]]
+name = "webrtc-nextjs"
