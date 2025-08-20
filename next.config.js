@@ -1,8 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Disable image optimization for better compatibility
+  // Image configuration for external domains
   images: {
-    unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "api.qrserver.com",
+        port: "",
+        pathname: "/v1/create-qr-code/**",
+      },
+    ],
   },
   // Remove standalone - use custom server instead
 };

@@ -292,7 +292,7 @@ export default function BrowserViewer() {
         await fetch("/api/signaling?type=ping", { method: "GET" });
         const rtt = performance.now() - pingStart;
         measurements.push(rtt);
-      } catch (error) {
+      } catch {
         // Use a fallback measurement if ping fails
         measurements.push(50 + Math.random() * 50);
       }

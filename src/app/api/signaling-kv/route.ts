@@ -35,15 +35,6 @@ async function setSession(sessionId: string, session: Session): Promise<void> {
   }
 }
 
-async function getDevice(deviceId: string): Promise<Device | null> {
-  try {
-    return await kv.get(`device:${deviceId}`);
-  } catch (error) {
-    console.error("Error getting device:", error);
-    return null;
-  }
-}
-
 async function setDevice(deviceId: string, device: Device): Promise<void> {
   try {
     await kv.set(`device:${deviceId}`, device, { ex: 300 }); // Expire in 5 minutes

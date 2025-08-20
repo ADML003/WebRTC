@@ -11,7 +11,7 @@ export default function PhoneCamera() {
   const [connectedBrowser, setConnectedBrowser] = useState<string | null>(null);
   const [videoConstraints, setVideoConstraints] = useState({
     facingMode: "environment",
-    quality: "HD"
+    quality: "HD",
   });
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -57,26 +57,26 @@ export default function PhoneCamera() {
     const baseConstraints = {
       facingMode: videoConstraints.facingMode,
       aspectRatio: { ideal: 16 / 9 },
-      frameRate: { ideal: 30, min: 15, max: 30 }
+      frameRate: { ideal: 30, min: 15, max: 30 },
     };
 
     if (videoConstraints.quality === "HD") {
       return {
         ...baseConstraints,
         width: { ideal: 1280, min: 640, max: 1920 },
-        height: { ideal: 720, min: 480, max: 1080 }
+        height: { ideal: 720, min: 480, max: 1080 },
       };
     } else if (videoConstraints.quality === "SD") {
       return {
         ...baseConstraints,
         width: { ideal: 854, min: 480, max: 1280 },
-        height: { ideal: 480, min: 360, max: 720 }
+        height: { ideal: 480, min: 360, max: 720 },
       };
     } else {
       return {
         ...baseConstraints,
         width: { ideal: 640, min: 320, max: 854 },
-        height: { ideal: 360, min: 240, max: 480 }
+        height: { ideal: 360, min: 240, max: 480 },
       };
     }
   };
@@ -119,7 +119,7 @@ export default function PhoneCamera() {
     } catch (err) {
       console.error("❌ Camera error:", err);
       const error = err as Error;
-      
+
       if (error.name === "NotAllowedError") {
         setStatus("❌ Camera access denied. Please allow camera permissions.");
       } else if (error.name === "NotFoundError") {
@@ -132,7 +132,7 @@ export default function PhoneCamera() {
 
   const stopCamera = () => {
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
     }
     if (videoRef.current) {
@@ -145,7 +145,7 @@ export default function PhoneCamera() {
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
     }
-    
+
     setIsStreaming(false);
     setStatus("Camera stopped");
     setConnectedBrowser(null);
@@ -154,7 +154,9 @@ export default function PhoneCamera() {
   const startPollingForOffers = () => {
     const pollOffers = async () => {
       try {
-        const response = await fetch(`/api/signaling?type=offer&deviceId=${phoneId}&sessionId=${phoneId}_browser`);
+        const response = await fetch(
+          `/api/signaling?type=offer&deviceId=${phoneId}&sessionId=${phoneId}_browser`
+        );
         const data = await response.json();
 
         if (data.success && data.offer) {
@@ -172,7 +174,7 @@ export default function PhoneCamera() {
   const handleOffer = async (offer: RTCSessionDescriptionInit) => {
     try {
       console.log("📥 Received offer from browser");
-      
+
       // Create peer connection
       const pc = new RTCPeerConnection({
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -182,7 +184,7 @@ export default function PhoneCamera() {
 
       // Add local stream
       if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => {
+        localStreamRef.current.getTracks().forEach((track) => {
           pc.addTrack(track, localStreamRef.current!);
         });
       }
@@ -233,7 +235,6 @@ export default function PhoneCamera() {
       setConnectedBrowser("browser");
       setStatus("🔴 Live streaming to browser");
       console.log("📤 Answer sent to browser");
-
     } catch (error) {
       console.error("Error handling offer:", error);
       setStatus("❌ Connection failed");
@@ -241,11 +242,11 @@ export default function PhoneCamera() {
   };
 
   const switchCamera = () => {
-    setVideoConstraints(prev => ({
+    setVideoConstraints((prev) => ({
       ...prev,
-      facingMode: prev.facingMode === "environment" ? "user" : "environment"
+      facingMode: prev.facingMode === "environment" ? "user" : "environment",
     }));
-    
+
     if (isStreaming) {
       stopCamera();
       setTimeout(() => startCamera(), 100);
@@ -253,11 +254,11 @@ export default function PhoneCamera() {
   };
 
   const changeQuality = (quality: string) => {
-    setVideoConstraints(prev => ({
+    setVideoConstraints((prev) => ({
       ...prev,
-      quality
+      quality,
     }));
-    
+
     if (isStreaming) {
       stopCamera();
       setTimeout(() => startCamera(), 100);
@@ -267,7 +268,9 @@ export default function PhoneCamera() {
   if (!isClient) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 flex items-center justify-center">
-        <div className="text-white text-2xl font-light">Loading Camera Interface...</div>
+        <div className="text-white text-2xl font-light">
+          Loading Camera Interface...
+        </div>
       </div>
     );
   }
@@ -283,16 +286,23 @@ export default function PhoneCamera() {
                 📱 Phone Camera
               </h1>
               <div className="flex items-center space-x-2 bg-slate-800/50 px-3 py-2 rounded-full">
-                <div className={`w-3 h-3 rounded-full ${
-                  connectionStatus === "Connected to server" 
-                    ? "bg-green-400 animate-pulse" 
-                    : "bg-red-400"
-                }`}></div>
-                <span className="text-sm text-slate-300">{connectionStatus}</span>
+                <div
+                  className={`w-3 h-3 rounded-full ${
+                    connectionStatus === "Connected to server"
+                      ? "bg-green-400 animate-pulse"
+                      : "bg-red-400"
+                  }`}
+                ></div>
+                <span className="text-sm text-slate-300">
+                  {connectionStatus}
+                </span>
               </div>
             </div>
             <div className="text-sm text-slate-400 bg-slate-800/30 px-3 py-1 rounded-lg">
-              ID: <span className="font-mono text-blue-400">{phoneId.slice(-6)}</span>
+              ID:{" "}
+              <span className="font-mono text-blue-400">
+                {phoneId.slice(-6)}
+              </span>
             </div>
           </div>
         </div>
@@ -303,13 +313,15 @@ export default function PhoneCamera() {
         <div className="mb-6 bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className={`w-4 h-4 rounded-full ${
-                isStreaming 
-                  ? connectedBrowser 
-                    ? "bg-red-500 animate-pulse" 
-                    : "bg-yellow-500 animate-pulse"
-                  : "bg-gray-500"
-              }`}></div>
+              <div
+                className={`w-4 h-4 rounded-full ${
+                  isStreaming
+                    ? connectedBrowser
+                      ? "bg-red-500 animate-pulse"
+                      : "bg-yellow-500 animate-pulse"
+                    : "bg-gray-500"
+                }`}
+              ></div>
               <span className="text-lg font-semibold text-white">{status}</span>
             </div>
             {connectedBrowser && (
@@ -332,19 +344,21 @@ export default function PhoneCamera() {
               muted
               className="w-full h-full object-cover"
             />
-            
+
             {!isStreaming && (
               <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80">
                 <div className="text-center p-8">
                   <div className="text-8xl mb-6 opacity-30">📷</div>
-                  <div className="text-2xl mb-4 text-slate-200 font-light">Camera Inactive</div>
+                  <div className="text-2xl mb-4 text-slate-200 font-light">
+                    Camera Inactive
+                  </div>
                   <div className="text-lg text-slate-400 mb-6">
                     Start your camera to begin streaming
                   </div>
                 </div>
               </div>
             )}
-            
+
             {/* Camera Controls Overlay */}
             {isStreaming && (
               <div className="absolute top-4 right-4 flex flex-col gap-2">
@@ -357,7 +371,9 @@ export default function PhoneCamera() {
                 </button>
                 <div className="bg-black/50 backdrop-blur-sm px-3 py-1 rounded-full">
                   <span className="text-white text-sm font-medium">
-                    {videoConstraints.facingMode === "environment" ? "📹 Rear" : "🤳 Front"}
+                    {videoConstraints.facingMode === "environment"
+                      ? "📹 Rear"
+                      : "🤳 Front"}
                   </span>
                 </div>
               </div>
@@ -372,7 +388,7 @@ export default function PhoneCamera() {
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
               📷 Camera Controls
             </h3>
-            
+
             <div className="space-y-4">
               {!isStreaming ? (
                 <button
@@ -389,12 +405,12 @@ export default function PhoneCamera() {
                   ⏹️ Stop Camera
                 </button>
               )}
-              
+
               <button
                 onClick={switchCamera}
                 disabled={!isStreaming}
                 className={`w-full py-3 px-6 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-3 ${
-                  isStreaming 
+                  isStreaming
                     ? "bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 text-blue-400"
                     : "bg-slate-600/20 border border-slate-500/30 text-slate-500 cursor-not-allowed"
                 }`}
@@ -409,7 +425,7 @@ export default function PhoneCamera() {
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
               ⚙️ Quality Settings
             </h3>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-slate-300 mb-3">
@@ -431,13 +447,16 @@ export default function PhoneCamera() {
                   ))}
                 </div>
               </div>
-              
+
               <div className="bg-slate-700/20 rounded-lg p-4">
                 <div className="text-sm text-slate-300 mb-2">
                   <strong>Current:</strong> {videoConstraints.quality} Quality
                 </div>
                 <div className="text-xs text-slate-400">
-                  Camera: {videoConstraints.facingMode === "environment" ? "Rear" : "Front"}
+                  Camera:{" "}
+                  {videoConstraints.facingMode === "environment"
+                    ? "Rear"
+                    : "Front"}
                 </div>
               </div>
             </div>
@@ -451,18 +470,26 @@ export default function PhoneCamera() {
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <h5 className="font-semibold text-white mb-3">Getting Started:</h5>
+              <h5 className="font-semibold text-white mb-3">
+                Getting Started:
+              </h5>
               <ol className="space-y-2 text-sm text-slate-300">
                 <li className="flex items-start gap-2">
-                  <span className="bg-blue-500/20 text-blue-400 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">1</span>
-                  <span>Click "Start Camera" to begin</span>
+                  <span className="bg-blue-500/20 text-blue-400 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">
+                    1
+                  </span>
+                  <span>Click &quot;Start Camera&quot; to begin</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="bg-blue-500/20 text-blue-400 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                  <span className="bg-blue-500/20 text-blue-400 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">
+                    2
+                  </span>
                   <span>Allow camera permissions when prompted</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="bg-blue-500/20 text-blue-400 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                  <span className="bg-blue-500/20 text-blue-400 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">
+                    3
+                  </span>
                   <span>Connect from the browser interface</span>
                 </li>
               </ol>
