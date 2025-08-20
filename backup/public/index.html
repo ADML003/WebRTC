@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🖥️ WebRTC Object Detection Studio</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+      :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        --danger-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        --dark-bg: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 100%);
+        --glass-bg: rgba(255, 255, 255, 0.1);
+        --glass-border: rgba(255, 255, 255, 0.2);
+        --text-primary: #ffffff;
+        --text-secondary: #b0b0b0;
+        --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.3);
+        --shadow-md: 0 10px 20px rgba(0, 0, 0, 0.2);
+        --border-radius: 16px;
+        --animation-speed: 0.3s;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: var(--dark-bg);
+        color: var(--text-primary);
+        overflow: hidden;
+        height: 100vh;
+      }
+
+      .app-container {
+        display: grid;
+        grid-template-columns: 320px 1fr 280px;
+        grid-template-rows: 80px 1fr;
+        height: 100vh;
+        gap: 20px;
+        padding: 20px;
+        background: var(--dark-bg);
+      }
+
+      .header {
+        grid-column: 1 / -1;
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--border-radius);
+        padding: 0 30px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: var(--shadow-md);
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        font-size: 24px;
+        font-weight: 700;
+        background: var(--primary-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 16px;
+        background: var(--glass-bg);
+        border-radius: 20px;
+        font-size: 14px;
+        border: 1px solid var(--glass-border);
+      }
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #ff4444;
+        animation: pulse 2s infinite;
+      }
+
+      .status-dot.connected {
+        background: #00ff88;
+      }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+
+      .control-panel {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--border-radius);
+        padding: 25px;
+        box-shadow: var(--shadow-md);
+        overflow-y: auto;
+      }
+
+      .panel-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .video-container {
+        position: relative;
+        background: #000;
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        box-shadow: var(--shadow-lg);
+        border: 1px solid var(--glass-border);
+      }
+
+      #video {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        background: linear-gradient(45deg, #0a0a0a, #1a1a1a);
+        display: block;
+      }
+
+      #canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      .video-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, transparent 49%, rgba(255,255,255,0.02) 50%, transparent 51%);
+        background-size: 20px 20px;
+        pointer-events: none;
+        opacity: 0.3;
+      }
+
+      .btn {
+        padding: 12px 20px;
+        background: var(--glass-bg);
+        color: var(--text-primary);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all var(--animation-speed) ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: center;
+        backdrop-filter: blur(20px);
+      }
+
+      .btn:hover {
+        background: var(--primary-gradient);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+      }
+
+      .btn:active {
+        transform: translateY(0);
+      }
+
+      .btn.primary {
+        background: var(--primary-gradient);
+      }
+
+      .btn.success {
+        background: var(--success-gradient);
+      }
+
+      .btn.danger {
+        background: var(--danger-gradient);
+      }
+
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .phone-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-height: 300px;
+        overflow-y: auto;
+        padding: 5px 0;
+      }
+
+      .phone-item {
+        padding: 15px;
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all var(--animation-speed) ease;
+        backdrop-filter: blur(20px);
+      }
+
+      .phone-item:hover {
+        background: var(--primary-gradient);
+        transform: translateX(5px);
+      }
+
+      .phone-item.active {
+        background: var(--success-gradient);
+      }
+
+      .phone-info {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .phone-id {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 5px;
+      }
+
+      .metrics-panel {
+        display: grid;
+        gap: 15px;
+      }
+
+      .metric-card {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 15px;
+        backdrop-filter: blur(20px);
+        transition: all var(--animation-speed) ease;
+      }
+
+      .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+      }
+
+      .metric-label {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-bottom: 5px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .metric-value {
+        font-size: 20px;
+        font-weight: 600;
+        background: var(--primary-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .controls-section {
+        margin-bottom: 25px;
+      }
+
+      .controls-section:last-child {
+        margin-bottom: 0;
+      }
+
+      .button-group {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .no-video-message {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        text-align: center;
+        color: var(--text-secondary);
+        background: linear-gradient(45deg, #0a0a0a, #1a1a1a);
+      }
+
+      .no-video-icon {
+        font-size: 64px;
+        margin-bottom: 20px;
+        opacity: 0.3;
+      }
+
+      .connection-steps {
+        margin-top: 20px;
+        padding: 20px;
+        background: var(--glass-bg);
+        border-radius: 12px;
+        border: 1px solid var(--glass-border);
+      }
+
+      .step {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+        font-size: 14px;
+        color: var(--text-secondary);
+      }
+
+      .step:last-child {
+        margin-bottom: 0;
+      }
+
+      .step-number {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: var(--primary-gradient);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 600;
+        color: white;
+      }
+
+      /* Scrollbar styles */
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: var(--glass-border);
+        border-radius: 3px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--primary-gradient);
+      }
+
+      @media (max-width: 1200px) {
+        .app-container {
+          grid-template-columns: 280px 1fr;
+          grid-template-rows: 80px 1fr;
+        }
+        
+        .metrics-panel {
+          display: none;
+        }
+      }
+
+      @media (max-width: 768px) {
+        .app-container {
+          grid-template-columns: 1fr;
+          grid-template-rows: 60px 1fr 200px;
+          padding: 10px;
+          gap: 10px;
+        }
+        
+        .control-panel {
+          padding: 15px;
+        }
+        
+        .header {
+          padding: 0 20px;
+        }
+        
+        .logo {
+          font-size: 18px;
+        }
+      }
+    </style>
+        padding: 15px;
+        border-radius: 5px;
+        border: 1px solid #555;
+      }
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h2>🖥️ WebRTC Object Detection Viewer</h2>
+      <p>
+        Receive live video from phone and perform real-time AI object detection
+      </p>
+    </div>
+
+    <div class="container">
+      <video id="video" playsinline></video>
+      <canvas id="canvas"></canvas>
+
+      <div class="controls">
+        <button id="refreshBtn" class="btn">🔄 Refresh Phones</button>
+
+        <div id="phoneList" class="phone-list hidden">
+          <div class="phone-item">No phones available</div>
+        </div>
+
+        <button id="disconnectBtn" class="btn hidden">❌ Disconnect</button>
+      </div>
+
+      <div class="status" id="status">
+        <div><strong>Status:</strong> Ready</div>
+        <div id="connectionInfo">No connection</div>
+      </div>
+
+      <div class="metrics" id="metrics">
+        <div><strong>Performance:</strong></div>
+        <div>FPS: <span id="fps">0</span></div>
+        <div>Latency: <span id="latency">0</span>ms</div>
+        <div>Objects: <span id="objects">0</span></div>
+        <div>Frames: <span id="frames">0</span></div>
+      </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

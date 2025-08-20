@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Socket.IO Test</title>
+  </head>
+  <body>
+    <h1>Socket.IO Connection Test</h1>
+    <div id="status">Connecting...</div>
+    <div id="log"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const status = document.getElementById("status");
+      const log = document.getElementById("log");
+
+      function addLog(message) {
+        log.innerHTML += message + "<br>";
+        console.log(message);
+      }
+
+      addLog("Starting Socket.IO test...");
+
+      const socket = io();
+
+      socket.on("connect", () => {
+        addLog("✅ Connected to Socket.IO server");
+        status.textContent = "Connected";
+        socket.emit("browser-connect", {});
+      });
+
+      socket.on("connect_error", (error) => {
+        addLog("❌ Connection error: " + error);
+        status.textContent = "Error";
+      });
+
+      socket.on("disconnect", (reason) => {
+        addLog("❌ Disconnected: " + reason);
+        status.textContent = "Disconnected";
+      });
+
+      socket.on("browser-connected", (data) => {
+        addLog("✅ Browser registered: " + data.browserId);
+      });
+    </script>
+  </body>
+</html>

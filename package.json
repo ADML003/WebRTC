@@ -1,22 +1,38 @@
 {
   "name": "webrtc-object-detection",
   "version": "1.0.0",
-  "description": "Real-time multi-object detection via WebRTC",
-  "main": "server/index.js",
+  "private": true,
+  "description": "Real-time multi-object detection via WebRTC with Next.js",
   "scripts": {
-    "start": "node server/index.js",
-    "dev": "nodemon server/index.js",
-    "build": "echo 'No build step required for vanilla JS'"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "server": "node server/simple-index.js"
   },
   "dependencies": {
     "@tensorflow/tfjs-node": "^4.10.0",
+    "@vercel/kv": "^3.0.0",
     "express": "^4.18.2",
+    "next": "15.4.6",
     "node-fetch": "^3.3.2",
     "qrcode": "^1.5.4",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
     "sharp": "^0.32.6",
     "socket.io": "^4.7.2"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.4.6",
+    "nodemon": "^3.0.1",
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }

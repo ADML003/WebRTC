@@ -9,11 +9,15 @@ export default function BrowserViewer() {
   const [deviceId, setDeviceId] = useState<string>("");
   const [isConnecting, setIsConnecting] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [detectionCount, setDetectionCount] = useState(0);
+  const [fps, setFps] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const currentSessionIdRef = useRef<string>("");
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Handle client-side mounting to prevent hydration mismatch
   useEffect(() => {
