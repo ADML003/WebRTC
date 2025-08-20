@@ -110,7 +110,7 @@ export async function POST(request: Request) {
         };
         sessions.set(sessionId, session);
         console.log(
-          `Offer stored: ${sessionId} from ${deviceId} to ${data.targetId}`
+          `Offer stored: ${sessionId} from browser ${deviceId} to phone ${data.targetId}`
         );
         return Response.json({ success: true });
 
@@ -211,11 +211,12 @@ export async function GET(request: Request) {
       case "available-phones":
         const now = Date.now();
         const activePhoneTimeout = 2 * 60 * 1000; // 2 minutes for active phones
-        
+
         const availablePhones = Array.from(devices.entries())
-          .filter(([, device]) => 
-            device.type === "phone" && 
-            (now - device.timestamp) < activePhoneTimeout
+          .filter(
+            ([, device]) =>
+              device.type === "phone" &&
+              now - device.timestamp < activePhoneTimeout
           )
           .map(([id]) => id);
         console.log(

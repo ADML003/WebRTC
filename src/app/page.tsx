@@ -114,6 +114,28 @@ export default function BrowserViewer() {
       peerConnectionRef.current = pc;
       currentSessionIdRef.current = `${deviceId}_${phoneId}`;
 
+      // Monitor connection state
+      pc.onconnectionstatechange = () => {
+        console.log("📡 Browser connection state:", pc.connectionState);
+        if (pc.connectionState === "connected") {
+          setConnectionStatus("Connected - Receiving stream");
+        } else if (pc.connectionState === "connecting") {
+          setConnectionStatus("Establishing connection...");
+        } else if (pc.connectionState === "disconnected") {
+          setConnectionStatus("Disconnected");
+          setConnectedPhone(null);
+        } else if (pc.connectionState === "failed") {
+          setConnectionStatus("Connection failed");
+          setConnectedPhone(null);
+          setIsConnecting(false);
+        }
+      };
+
+      // Monitor ICE connection state
+      pc.oniceconnectionstatechange = () => {
+        console.log("🧊 Browser ICE connection state:", pc.iceConnectionState);
+      };
+
       // Handle incoming stream
       pc.ontrack = (event) => {
         console.log("📺 Received remote stream");
@@ -144,14 +166,13 @@ export default function BrowserViewer() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 type: "ice-candidate",
-                deviceId,
-                targetId: phoneId,
+                sessionId: currentSessionIdRef.current,
                 data: {
-                  sessionId: currentSessionIdRef.current,
                   candidate: event.candidate,
                 },
               }),
             });
+            console.log("📤 ICE candidate sent from browser");
           } catch (error) {
             console.error("Error sending ICE candidate:", error);
           }
@@ -167,11 +188,11 @@ export default function BrowserViewer() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "offer",
-          deviceId,
-          targetId: phoneId,
+          deviceId: deviceId,
+          sessionId: currentSessionIdRef.current,
           data: {
-            sessionId: currentSessionIdRef.current,
             offer: offer,
+            targetId: phoneId,
           },
         }),
       });

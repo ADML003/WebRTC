@@ -181,8 +181,8 @@ export default function PhoneCamera() {
   };
 
   const handleOffer = async (
-    offer: RTCSessionDescriptionInit, 
-    sessionId: string, 
+    offer: RTCSessionDescriptionInit,
+    sessionId: string,
     browserId: string
   ) => {
     try {
@@ -194,6 +194,25 @@ export default function PhoneCamera() {
       });
 
       peerConnectionRef.current = pc;
+
+      // Monitor connection state
+      pc.onconnectionstatechange = () => {
+        console.log("📡 Phone connection state:", pc.connectionState);
+        if (pc.connectionState === "connected") {
+          setStatus("✅ Connected to browser - Streaming live");
+        } else if (pc.connectionState === "disconnected") {
+          setStatus("📱 Disconnected from browser");
+          setConnectedBrowser(null);
+        } else if (pc.connectionState === "failed") {
+          setStatus("❌ Connection failed");
+          setConnectedBrowser(null);
+        }
+      };
+
+      // Monitor ICE connection state
+      pc.oniceconnectionstatechange = () => {
+        console.log("🧊 Phone ICE connection state:", pc.iceConnectionState);
+      };
 
       // Add local stream
       if (localStreamRef.current) {
@@ -217,8 +236,45 @@ export default function PhoneCamera() {
                 },
               }),
             });
+            console.log("📤 ICE candidate sent from phone");
           } catch (error) {
             console.error("Error sending ICE candidate:", error);
+          }
+        }
+      };
+
+      // Poll for ICE candidates from browser
+      const pollForIce = async () => {
+        try {
+          const iceResponse = await fetch(
+            `/api/signaling?type=poll-ice&sessionId=${sessionId}`
+          );
+          const iceData = await iceResponse.json();
+
+          if (iceData.candidates && iceData.candidates.length > 0) {
+            console.log(
+              `📥 Received ${iceData.candidates.length} ICE candidates from browser`
+            );
+            for (const candidate of iceData.candidates) {
+              await pc.addIceCandidate(candidate);
+            }
+          }
+
+          // Continue polling while connection is being established
+          if (
+            pc.connectionState !== "connected" &&
+            pc.connectionState !== "failed"
+          ) {
+            setTimeout(pollForIce, 1000);
+          }
+        } catch (error) {
+          console.error("Error polling for ICE candidates:", error);
+          // Continue polling even if there's an error
+          if (
+            pc.connectionState !== "connected" &&
+            pc.connectionState !== "failed"
+          ) {
+            setTimeout(pollForIce, 2000);
           }
         }
       };
@@ -227,6 +283,9 @@ export default function PhoneCamera() {
       await pc.setRemoteDescription(offer);
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
+
+      // Start polling for ICE candidates from browser
+      pollForIce();
 
       // Send answer
       await fetch("/api/signaling", {
