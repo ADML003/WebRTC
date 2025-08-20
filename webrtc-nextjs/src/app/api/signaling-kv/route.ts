@@ -236,3 +236,6 @@ export async function GET(request: Request) {
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+// Configure serverless function timeout for Vercel
+export const maxDuration = 10;

@@ -1,12 +1,4 @@
 {
-  "functions": {
-    "webrtc-nextjs/src/app/api/signaling/route.ts": {
-      "maxDuration": 10
-    },
-    "webrtc-nextjs/src/app/api/signaling-kv/route.ts": {
-      "maxDuration": 10
-    }
-  },
   "rewrites": [
     {
       "source": "/(.*)",
