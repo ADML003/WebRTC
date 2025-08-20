@@ -1,0 +1,10 @@
+# Vercel ignore file
+
+node_modules
+.env.local
+.env*.local
+.git
+*.log
+.DS_Store
+README.md
+VERCEL_DEPLOYMENT_GUIDE.md
