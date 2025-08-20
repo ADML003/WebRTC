@@ -51,20 +51,39 @@ export default function PhoneCamera() {
       setStatus('Starting camera...');
       setShowInstructions(false);
 
+      // Enhanced constraints for better video quality and compatibility
       const constraints = {
         video: {
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+          facingMode: 'environment', // Use rear camera
+          width: { ideal: 1280, min: 640, max: 1920 },
+          height: { ideal: 720, min: 480, max: 1080 },
+          frameRate: { ideal: 30, min: 15, max: 30 },
+          aspectRatio: { ideal: 16/9 }
         },
-        audio: false
+        audio: false // Audio disabled for phone camera
       };
 
+      console.log('📹 Requesting camera with constraints:', constraints);
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      
+      // Log actual stream properties
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        const settings = videoTrack.getSettings();
+        console.log('📹 Camera settings:', settings);
+        console.log('📹 Track state:', videoTrack.readyState, videoTrack.enabled);
+      }
+      
       localStreamRef.current = stream;
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => {
+          console.log('📺 Video metadata loaded');
+          videoRef.current?.play().catch(error => {
+            console.error('❌ Video play failed:', error);
+          });
+        };
       }
 
       setIsStreaming(true);
@@ -73,9 +92,22 @@ export default function PhoneCamera() {
       // Start polling for WebRTC offers
       startPollingForOffers();
 
-    } catch (error) {
-      console.error('Camera error:', error);
-      setStatus('Failed to start camera. Please allow camera permissions and try again.');
+    } catch (err) {
+      console.error('❌ Camera error:', err);
+      const error = err as Error;
+      let errorMessage = 'Failed to start camera. ';
+      
+      if (error?.name === 'NotAllowedError') {
+        errorMessage += 'Please allow camera permissions and try again.';
+      } else if (error?.name === 'NotFoundError') {
+        errorMessage += 'No camera found on this device.';
+      } else if (error?.name === 'NotReadableError') {
+        errorMessage += 'Camera is already in use by another application.';
+      } else {
+        errorMessage += 'Please check your camera and try again.';
+      }
+      
+      setStatus(errorMessage);
       setShowInstructions(true);
     }
   };
@@ -109,11 +141,18 @@ export default function PhoneCamera() {
         return;
       }
 
-      // Create peer connection
+      // Close any existing peer connection
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+        peerConnectionRef.current = null;
+      }
+
+      // Create peer connection with more robust configuration
       const peerConnection = new RTCPeerConnection({
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
           {
             urls: 'turn:openrelay.metered.ca:80',
             username: 'openrelayproject',
@@ -124,78 +163,143 @@ export default function PhoneCamera() {
             username: 'openrelayproject',
             credential: 'openrelayproject',
           },
+          {
+            urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+            username: 'openrelayproject',
+            credential: 'openrelayproject',
+          },
         ],
-        bundlePolicy: 'balanced',
+        bundlePolicy: 'max-bundle',
         iceTransportPolicy: 'all',
       });
 
       peerConnectionRef.current = peerConnection;
 
-      // Add local stream tracks
+      // Add all tracks from local stream
       localStreamRef.current.getTracks().forEach((track) => {
-        console.log('📹 Adding track to peer connection:', track.kind);
-        peerConnection.addTrack(track, localStreamRef.current!);
+        console.log('📹 Adding track to peer connection:', track.kind, track.enabled, track.readyState);
+        if (localStreamRef.current) {
+          peerConnection.addTrack(track, localStreamRef.current);
+        }
       });
 
-      // Handle ICE candidates
+      // Handle ICE candidates with retry mechanism
       peerConnection.onicecandidate = async (event) => {
         if (event.candidate) {
-          try {
-            await fetch('/api/signaling', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: 'ice-candidate',
-                sessionId: data.sessionId,
-                deviceId: phoneId,
-                data: { candidate: event.candidate }
-              })
-            });
-          } catch (error) {
-            console.error('Error sending ICE candidate:', error);
+          console.log('🧊 Sending ICE candidate:', event.candidate.candidate);
+          let retries = 3;
+          while (retries > 0) {
+            try {
+              const response = await fetch('/api/signaling', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'ice-candidate',
+                  sessionId: data.sessionId,
+                  deviceId: phoneId,
+                  data: { candidate: event.candidate }
+                })
+              });
+              
+              if (response.ok) {
+                console.log('✅ ICE candidate sent successfully');
+                break;
+              } else {
+                throw new Error(`HTTP ${response.status}`);
+              }
+            } catch (error) {
+              retries--;
+              console.error(`❌ Error sending ICE candidate (${retries} retries left):`, error);
+              if (retries > 0) {
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
+              }
+            }
           }
+        } else {
+          console.log('🧊 ICE gathering complete');
         }
       };
 
-      // Handle connection state changes
+      // Handle connection state changes with detailed logging
       peerConnection.onconnectionstatechange = () => {
         const state = peerConnection.connectionState;
         console.log('🔗 Connection state:', state);
         
         if (state === 'connected') {
-          setStatus('Connected to browser! 📹');
-        } else if (state === 'failed' || state === 'disconnected') {
+          setStatus('Connected to browser! 📹 Video streaming active');
+          console.log('✅ WebRTC connection established successfully');
+        } else if (state === 'failed') {
+          console.error('❌ WebRTC connection failed');
+          setStatus('Connection failed - Waiting for new connection...');
+          // Don't close the connection immediately, let it retry
+        } else if (state === 'disconnected') {
+          console.warn('⚠️ WebRTC connection disconnected');
           setStatus('Connection lost - Waiting for new connection...');
+        } else if (state === 'connecting') {
+          setStatus('Establishing connection...');
+        }
+      };
+
+      // Handle ICE connection state changes
+      peerConnection.oniceconnectionstatechange = () => {
+        const iceState = peerConnection.iceConnectionState;
+        console.log('🧊 ICE connection state:', iceState);
+        
+        if (iceState === 'failed') {
+          console.error('❌ ICE connection failed - restarting ICE');
+          peerConnection.restartIce();
         }
       };
 
       // Set remote description and create answer
+      console.log('📡 Setting remote description...');
       await peerConnection.setRemoteDescription(data.offer);
-      const answer = await peerConnection.createAnswer();
-      await peerConnection.setLocalDescription(answer);
-
-      // Send answer back
-      const response = await fetch('/api/signaling', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'answer',
-          sessionId: data.sessionId,
-          deviceId: phoneId,
-          data: { answer }
-        })
+      
+      console.log('📡 Creating answer...');
+      const answer = await peerConnection.createAnswer({
+        offerToReceiveVideo: false,
+        offerToReceiveAudio: false,
       });
+      
+      await peerConnection.setLocalDescription(answer);
+      console.log('📡 Local description set');
 
-      if (response.ok) {
-        console.log('📡 WebRTC answer sent to browser');
-        setStatus('Connected to browser! 📹');
-      } else {
-        throw new Error('Failed to send answer');
+      // Send answer back with retry mechanism
+      let retries = 3;
+      while (retries > 0) {
+        try {
+          const response = await fetch('/api/signaling', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'answer',
+              sessionId: data.sessionId,
+              deviceId: phoneId,
+              data: { answer }
+            })
+          });
+
+          if (response.ok) {
+            console.log('📡 WebRTC answer sent to browser successfully');
+            setStatus('Answer sent - Waiting for connection...');
+            break;
+          } else {
+            throw new Error(`HTTP ${response.status}`);
+          }
+        } catch (error) {
+          retries--;
+          console.error(`❌ Error sending answer (${retries} retries left):`, error);
+          if (retries > 0) {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
+          } else {
+            throw error;
+          }
+        }
       }
 
     } catch (error) {
-      console.error('Error handling offer:', error);
-      setStatus('Connection failed');
+      console.error('❌ Error handling offer:', error);
+      setStatus('Connection failed - Check camera and network');
     }
   };
 

@@ -88,6 +88,7 @@ export default function BrowserViewer() {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
           {
             urls: 'turn:openrelay.metered.ca:80',
             username: 'openrelayproject',
@@ -98,8 +99,13 @@ export default function BrowserViewer() {
             username: 'openrelayproject',
             credential: 'openrelayproject',
           },
+          {
+            urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+            username: 'openrelayproject',
+            credential: 'openrelayproject',
+          },
         ],
-        bundlePolicy: 'balanced',
+        bundlePolicy: 'max-bundle',
         iceTransportPolicy: 'all',
       });
 
@@ -107,56 +113,111 @@ export default function BrowserViewer() {
       const sessionId = 'session_' + Date.now();
       currentSessionIdRef.current = sessionId;
 
-      // Handle incoming video stream
+      // Handle incoming video stream with debugging
       peerConnection.ontrack = (event) => {
-        console.log('📡 Received video track from phone');
+        console.log('📡 Received video track from phone:', event.track.kind, event.track.enabled, event.track.readyState);
+        console.log('📡 Streams received:', event.streams.length);
+        
         if (videoRef.current && event.streams[0]) {
+          console.log('📺 Setting video source to received stream');
           videoRef.current.srcObject = event.streams[0];
-          setConnectionStatus('Connected - Receiving video');
+          
+          // Ensure video plays
+          videoRef.current.onloadedmetadata = () => {
+            console.log('📺 Video metadata loaded, attempting to play');
+            videoRef.current?.play().catch(error => {
+              console.error('❌ Video play failed:', error);
+            });
+          };
+          
+          setConnectionStatus('Connected - Receiving video feed');
+        } else {
+          console.warn('⚠️ No video ref or streams available');
         }
       };
 
-      // Handle ICE candidates
+      // Handle ICE candidates with retry mechanism
       peerConnection.onicecandidate = async (event) => {
         if (event.candidate) {
-          try {
-            await fetch('/api/signaling', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: 'ice-candidate',
-                sessionId,
-                deviceId,
-                data: { candidate: event.candidate }
-              })
-            });
-          } catch (error) {
-            console.error('Error sending ICE candidate:', error);
+          console.log('🧊 Sending ICE candidate from browser:', event.candidate.candidate);
+          let retries = 3;
+          while (retries > 0) {
+            try {
+              const response = await fetch('/api/signaling', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'ice-candidate',
+                  sessionId,
+                  deviceId,
+                  data: { candidate: event.candidate }
+                })
+              });
+              
+              if (response.ok) {
+                console.log('✅ ICE candidate sent successfully');
+                break;
+              } else {
+                throw new Error(`HTTP ${response.status}`);
+              }
+            } catch (error) {
+              retries--;
+              console.error(`❌ Error sending ICE candidate (${retries} retries left):`, error);
+              if (retries > 0) {
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
+              }
+            }
           }
+        } else {
+          console.log('🧊 ICE gathering complete for browser');
         }
       };
 
-      // Handle connection state changes
+      // Handle connection state changes with detailed logging
       peerConnection.onconnectionstatechange = () => {
         const state = peerConnection.connectionState;
-        console.log('🔗 Connection state:', state);
+        console.log('🔗 Browser connection state:', state);
         
         if (state === 'connected') {
-          setConnectionStatus('Connected');
-        } else if (state === 'failed' || state === 'disconnected') {
+          setConnectionStatus('Connected - Video feed active');
+          console.log('✅ Browser WebRTC connection established successfully');
+        } else if (state === 'failed') {
+          console.error('❌ Browser WebRTC connection failed');
           setConnectionStatus('Connection failed');
           setConnectedPhone(null);
           setIsConnecting(false);
+        } else if (state === 'disconnected') {
+          console.warn('⚠️ Browser WebRTC connection disconnected');
+          setConnectionStatus('Connection lost');
+          setConnectedPhone(null);
+          setIsConnecting(false);
+        } else if (state === 'connecting') {
+          setConnectionStatus('Establishing connection...');
+        }
+      };
+
+      // Handle ICE connection state changes
+      peerConnection.oniceconnectionstatechange = () => {
+        const iceState = peerConnection.iceConnectionState;
+        console.log('🧊 Browser ICE connection state:', iceState);
+        
+        if (iceState === 'failed') {
+          console.error('❌ Browser ICE connection failed - restarting ICE');
+          peerConnection.restartIce();
+        } else if (iceState === 'connected') {
+          console.log('✅ Browser ICE connection established');
         }
       };
 
       // Create and send offer
+      console.log('📡 Creating offer...');
       const offer = await peerConnection.createOffer({
         offerToReceiveVideo: true,
         offerToReceiveAudio: false,
       });
       
       await peerConnection.setLocalDescription(offer);
+      console.log('📡 Local description set, sending offer...');
 
       const response = await fetch('/api/signaling', {
         method: 'POST',
@@ -219,9 +280,11 @@ export default function BrowserViewer() {
             const data = await response.json();
             
             if (data.candidates && data.candidates.length > 0) {
+              console.log(`📡 Received ${data.candidates.length} ICE candidates`);
               for (const candidate of data.candidates) {
                 if (peerConnection.remoteDescription) {
                   await peerConnection.addIceCandidate(candidate);
+                  console.log('🧊 Added ICE candidate');
                 }
               }
             }

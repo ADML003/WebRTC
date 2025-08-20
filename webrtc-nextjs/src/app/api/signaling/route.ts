@@ -1,5 +1,5 @@
 // HTTP-based WebRTC signaling server for Vercel deployment
-// Using in-memory storage (in production, use Redis or database)
+// Using global objects with extended timeouts and better persistence
 
 interface Session {
   id: string;
@@ -17,27 +17,44 @@ interface Device {
   timestamp: number;
 }
 
-// In-memory storage (Note: This will be reset on each serverless function call on Vercel)
-// For production, use Redis or a database for persistent storage
-const sessions = new Map<string, Session>();
-const devices = new Map<string, Device>();
+// Use global objects to persist across function calls within the same instance
+declare global {
+  var globalSessions: Map<string, Session> | undefined;
+  var globalDevices: Map<string, Device> | undefined;
+}
+
+// Initialize or reuse global storage
+const sessions = globalThis.globalSessions ?? new Map<string, Session>();
+const devices = globalThis.globalDevices ?? new Map<string, Device>();
+
+if (process.env.NODE_ENV === 'development') {
+  globalThis.globalSessions = sessions;
+  globalThis.globalDevices = devices;
+}
 
 // Cleanup function - called manually instead of setInterval (which doesn't work on Vercel)
 function cleanupExpiredData() {
   const now = Date.now();
-  const maxAge = 5 * 60 * 1000; // 5 minutes
+  const maxAge = 10 * 60 * 1000; // 10 minutes (increased from 5)
+  
+  let sessionsCleaned = 0;
+  let devicesCleaned = 0;
   
   for (const [id, session] of sessions.entries()) {
     if (now - session.timestamp > maxAge) {
       sessions.delete(id);
+      sessionsCleaned++;
     }
   }
   
   for (const [id, device] of devices.entries()) {
     if (now - device.timestamp > maxAge) {
       devices.delete(id);
+      devicesCleaned++;
     }
   }
+  
+  console.log(`Cleanup: removed ${sessionsCleaned} sessions and ${devicesCleaned} devices`);
 }
 
 export async function POST(request: Request) {
@@ -48,6 +65,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { type, data, sessionId, deviceId } = body;
 
+    console.log(`Signaling POST: ${type}`, { sessionId, deviceId, sessionsCount: sessions.size, devicesCount: devices.size });
+
     switch (type) {
       case 'register':
         devices.set(deviceId, {
@@ -56,10 +75,13 @@ export async function POST(request: Request) {
           timestamp: Date.now()
         });
         
+        console.log(`Device registered: ${deviceId} (${data.deviceType})`);
+        
         if (data.deviceType === 'browser') {
           const availablePhones = Array.from(devices.entries())
-            .filter(([_, device]) => device.type === 'phone')
-            .map(([id, _]) => id);
+            .filter(([, device]) => device.type === 'phone')
+            .map(([id]) => id);
+          console.log('Available phones for browser:', availablePhones);
           return Response.json({ success: true, deviceId, availablePhones });
         }
         
@@ -75,24 +97,31 @@ export async function POST(request: Request) {
           timestamp: Date.now()
         };
         sessions.set(sessionId, session);
+        console.log(`Offer stored: ${sessionId} from ${deviceId} to ${data.targetId}`);
         return Response.json({ success: true });
 
       case 'answer':
         if (sessions.has(sessionId)) {
           const session = sessions.get(sessionId)!;
           session.answer = data.answer;
+          session.timestamp = Date.now(); // Update timestamp
           sessions.set(sessionId, session);
+          console.log(`Answer stored: ${sessionId}`);
           return Response.json({ success: true });
         }
+        console.error(`Session not found for answer: ${sessionId}`);
         return Response.json({ error: 'Session not found' }, { status: 404 });
 
       case 'ice-candidate':
         if (sessions.has(sessionId)) {
           const session = sessions.get(sessionId)!;
           session.iceCandidates.push(data.candidate);
+          session.timestamp = Date.now(); // Update timestamp
           sessions.set(sessionId, session);
+          console.log(`ICE candidate added: ${sessionId} (total: ${session.iceCandidates.length})`);
           return Response.json({ success: true });
         }
+        console.error(`Session not found for ICE candidate: ${sessionId}`);
         return Response.json({ error: 'Session not found' }, { status: 404 });
 
       default:
@@ -114,11 +143,14 @@ export async function GET(request: Request) {
     const sessionId = url.searchParams.get('sessionId');
     const deviceId = url.searchParams.get('deviceId');
 
+    console.log(`Signaling GET: ${type}`, { sessionId, deviceId, sessionsCount: sessions.size, devicesCount: devices.size });
+
     switch (type) {
       case 'poll-offer':
         // Phone polls for offers
         for (const [id, session] of sessions.entries()) {
           if (session.phone === deviceId && session.offer && !session.answer) {
+            console.log(`Found offer for phone ${deviceId}: session ${id}`);
             return Response.json({ 
               sessionId: id, 
               offer: session.offer,
@@ -133,6 +165,7 @@ export async function GET(request: Request) {
         if (sessionId && sessions.has(sessionId)) {
           const session = sessions.get(sessionId)!;
           if (session.answer) {
+            console.log(`Found answer for session ${sessionId}`);
             return Response.json({ answer: session.answer });
           }
         }
@@ -143,7 +176,11 @@ export async function GET(request: Request) {
         if (sessionId && sessions.has(sessionId)) {
           const session = sessions.get(sessionId)!;
           const candidates = session.iceCandidates.splice(0); // Get and clear
+          session.timestamp = Date.now(); // Update timestamp
           sessions.set(sessionId, session);
+          if (candidates.length > 0) {
+            console.log(`Retrieved ${candidates.length} ICE candidates for session ${sessionId}`);
+          }
           return Response.json({ candidates });
         }
         return Response.json({ candidates: [] });
@@ -152,6 +189,7 @@ export async function GET(request: Request) {
         const availablePhones = Array.from(devices.entries())
           .filter(([, device]) => device.type === 'phone')
           .map(([id]) => id);
+        console.log(`Available phones requested: ${availablePhones.length} found`);
         return Response.json({ phones: availablePhones });
 
       default:
