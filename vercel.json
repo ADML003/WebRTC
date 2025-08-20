@@ -1,11 +1,5 @@
 {
   "buildCommand": "npm run build",
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/webrtc-nextjs/$1"
-    }
-  ],
   "headers": [
     {
       "source": "/api/(.*)",
