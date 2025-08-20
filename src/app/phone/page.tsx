@@ -298,11 +298,11 @@ export default function PhoneCamera() {
                 </span>
               </div>
             </div>
-            <div className="text-sm text-slate-400 bg-slate-800/30 px-3 py-1 rounded-lg">
-              ID:{" "}
-              <span className="font-mono text-blue-400">
-                {phoneId.slice(-6)}
-              </span>
+            <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-400/30 px-4 py-2 rounded-xl">
+              <div className="text-xs text-slate-300 mb-1">Device ID</div>
+              <div className="font-mono text-lg font-bold text-blue-400">
+                {phoneId.slice(-8)}
+              </div>
             </div>
           </div>
         </div>
@@ -336,7 +336,7 @@ export default function PhoneCamera() {
 
         {/* Video Display */}
         <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 mb-6">
-          <div className="relative bg-black rounded-xl overflow-hidden shadow-2xl aspect-video">
+          <div className="relative bg-black rounded-xl overflow-hidden shadow-2xl aspect-[3/4] md:aspect-video">
             <video
               ref={videoRef}
               autoPlay
@@ -466,12 +466,12 @@ export default function PhoneCamera() {
         {/* Instructions */}
         <div className="bg-gradient-to-br from-blue-900/20 to-purple-900/20 border border-blue-700/30 rounded-2xl p-6">
           <h4 className="text-lg font-bold text-blue-300 mb-4 flex items-center gap-2">
-            📋 Instructions
+            📋 Connection Instructions
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <h5 className="font-semibold text-white mb-3">
-                Getting Started:
+                📱 On This Phone:
               </h5>
               <ol className="space-y-2 text-sm text-slate-300">
                 <li className="flex items-start gap-2">
@@ -490,24 +490,24 @@ export default function PhoneCamera() {
                   <span className="bg-blue-500/20 text-blue-400 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">
                     3
                   </span>
-                  <span>Connect from the browser interface</span>
+                  <span>Note your Device ID: <strong className="text-blue-400">{phoneId.slice(-8)}</strong></span>
                 </li>
               </ol>
             </div>
             <div>
-              <h5 className="font-semibold text-white mb-3">Tips:</h5>
+              <h5 className="font-semibold text-white mb-3">💻 On Browser:</h5>
               <ul className="space-y-2 text-sm text-slate-300">
                 <li className="flex items-center gap-2">
-                  <span className="text-blue-400">💡</span>
-                  <span>Use rear camera for better object detection</span>
+                  <span className="text-blue-400">🌐</span>
+                  <span>Open the browser view on your computer</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="text-blue-400">💡</span>
-                  <span>HD quality provides better accuracy</span>
+                  <span className="text-blue-400">�</span>
+                  <span>Look for device ID <strong className="text-blue-400">{phoneId.slice(-8)}</strong></span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="text-blue-400">💡</span>
-                  <span>Ensure good lighting for best results</span>
+                  <span className="text-blue-400">�</span>
+                  <span>Click &quot;Connect&quot; to start streaming</span>
                 </li>
               </ul>
             </div>

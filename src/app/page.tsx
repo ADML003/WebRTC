@@ -615,24 +615,34 @@ export default function BrowserViewer() {
                   availablePhones.map((phoneId) => (
                     <div
                       key={phoneId}
-                      className="bg-slate-700/30 border border-slate-600/50 rounded-xl p-4 transition-all duration-300 hover:bg-slate-700/50 hover:border-slate-500/70"
+                      className="bg-slate-700/30 border border-slate-600/50 rounded-xl p-5 transition-all duration-300 hover:bg-slate-700/50 hover:border-slate-500/70"
                     >
                       <div className="flex items-center justify-between mb-4">
-                        <span className="font-mono text-xs text-slate-300 truncate bg-slate-800/50 px-2 py-1 rounded">
-                          {phoneId}
-                        </span>
-                        <div
-                          className={`w-4 h-4 rounded-full ${
-                            connectedPhone === phoneId
-                              ? "bg-green-400 shadow-lg shadow-green-400/50 animate-pulse"
-                              : "bg-slate-500"
-                          }`}
-                        ></div>
+                        <div className="flex flex-col">
+                          <span className="text-slate-200 font-semibold mb-1">
+                            📱 Phone Device
+                          </span>
+                          <span className="font-mono text-sm text-blue-400 bg-slate-800/70 px-3 py-1.5 rounded-lg">
+                            ID: {phoneId.slice(-8)}
+                          </span>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <div
+                            className={`w-4 h-4 rounded-full mb-2 ${
+                              connectedPhone === phoneId
+                                ? "bg-green-400 shadow-lg shadow-green-400/50 animate-pulse"
+                                : "bg-yellow-400 animate-pulse"
+                            }`}
+                          ></div>
+                          <span className="text-xs text-slate-400">
+                            {connectedPhone === phoneId ? "Connected" : "Available"}
+                          </span>
+                        </div>
                       </div>
                       <button
                         onClick={() => connectToPhone(phoneId)}
                         disabled={isConnecting || connectedPhone === phoneId}
-                        className={`w-full py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${
+                        className={`w-full py-4 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ${
                           connectedPhone === phoneId
                             ? "bg-green-600/20 border border-green-500/50 text-green-400 cursor-not-allowed"
                             : isConnecting
@@ -641,10 +651,10 @@ export default function BrowserViewer() {
                         }`}
                       >
                         {connectedPhone === phoneId
-                          ? "✅ Connected"
+                          ? "✅ Connected - Receiving Stream"
                           : isConnecting
                           ? "⏳ Connecting..."
-                          : "🔗 Connect"}
+                          : "🔗 Connect to Camera"}
                       </button>
                     </div>
                   ))
