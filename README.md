@@ -1,114 +1,86 @@
-# WebRTC Real-Time Object Detection System
+# WebRTC Phone-to-Browser Video Streaming App
 
-A production-ready WebRTC system that streams live video from mobile phones to browsers for real-time AI object detection with overlay visualization.
+A Next.js application that enables real-time video streaming from mobile phone cameras to web browsers using WebRTC technology.
 
-## 🚀 Current Status
+## � About the App
 
-✅ **WORKING** - Full WebRTC streaming pipeline from phone to browser  
-✅ **WORKING** - Real-time object detection with TensorFlow.js  
-✅ **WORKING** - Live bounding box overlays on video stream  
-✅ **WORKING** - Performance metrics collection and export  
-✅ **WORKING** - Mock detection mode for testing  
-✅ **WORKING** - Docker containerization ready
+This application allows you to:
 
-## � Quick Start
+- Stream live video from your phone's camera to a web browser
+- Connect multiple phones to different browser sessions
+- View real-time video feeds with responsive design
+- Generate QR codes for easy device connection
 
-**One Command Start:**
+## 🔗 API Endpoints
 
-```bash
-chmod +x start.sh
-./start.sh
-```
+### Health Check
 
-**Manual Start:**
+- `GET /api/health` - Server health status and environment info
 
-```bash
-npm install
-node server/simple-index.js
-```
+### Signaling Server
 
-**Docker Start:**
+- `POST /api/signaling` - WebRTC signaling for connection establishment
+- `GET /api/signaling` - Retrieve active sessions and devices
 
-```bash
-docker-compose up
-```
+### Metrics
 
-## 📱 Usage
+- `GET /api/metrics` - Application performance metrics
 
-1. Start the server using one of the commands above
-2. Open the displayed URL on your phone's browser
-3. Allow camera permissions
-4. Click "Start Camera"
-5. Point camera at objects to see real-time detection
+### Key-Value Storage
 
-## 🏗️ Architecture
+- `POST /api/signaling-kv` - Persistent signaling using Vercel KV
 
-### Low-Resource Mode (Default)
+## 🎯 Utility
 
-- **Client**: Phone browser captures video at 320x240
-- **Server**: ONNX Runtime with YOLOv8n (6MB model)
-- **Processing**: CPU-only inference, 10-15 FPS
-- **Latency**: ~100-200ms end-to-end
+- **Remote Monitoring**: View live camera feeds from mobile devices
+- **Multi-Device Support**: Connect multiple phones simultaneously
+- **Cross-Platform**: Works on iOS Safari and Android Chrome
+- **Real-Time Communication**: Low-latency video streaming via WebRTC
+- **QR Code Integration**: Easy device pairing through QR codes
 
-### Server Mode
+## 🚀 Vercel Deployment
 
-- Same architecture but with GPU acceleration if available
-- Higher resolution processing (640x640)
-- Lower latency (~50-100ms)
+This app is optimized for Vercel deployment with:
 
-## 📊 Metrics
+- **Serverless Functions**: API routes as serverless functions
+- **Edge Runtime**: Optimized for global performance
+- **Vercel KV**: Persistent storage for signaling data
+- **CORS Configuration**: Proper headers for cross-origin requests
+- **Environment Variables**: Automatic deployment region detection
 
-Real-time metrics available at:
+## �️ Next.js Features
 
-- **Live**: Bottom-right corner of browser
-- **Detailed**: `http://localhost:3000/metrics`
-- **Export**: `metrics.json` (auto-generated)
+Built with modern Next.js capabilities:
 
-## 🛠️ Technical Details
+- **App Router**: Using the new app directory structure
+- **TypeScript**: Full type safety across the application
+- **Tailwind CSS**: Utility-first styling
+- **React 19**: Latest React features and optimizations
+- **API Routes**: Server-side API endpoints
+- **Static Generation**: Optimized build process
 
-### Performance Optimizations
+## 🔮 Future Scope of Improvements
 
-- Adaptive frame rate (10-15 FPS)
-- Image downsampling (320x240 → 640x640)
-- Efficient WebSocket communication
-- Normalized coordinates for overlay alignment
-- Frame synchronization with timestamps
+### Core Features
 
-### Dependencies
+- **AI Object Detection**: Real-time object recognition in video streams
+- **Multi-User Rooms**: Group video sessions with multiple participants
+- **Screen Recording**: Save and export video streams
+- **Audio Support**: Two-way audio communication
+- **Chat Integration**: Text messaging during video sessions
 
-- **Server**: Node.js, Express, WebSocket, ONNX Runtime
-- **Client**: Vanilla JavaScript, Canvas API
-- **Model**: YOLOv8n (optimized for speed)
+### Technical Enhancements
 
-## 📋 Requirements
+- **WebSocket Upgrade**: Real-time bidirectional communication
+- **Progressive Web App**: Offline capabilities and app-like experience
+- **Performance Optimization**: Frame rate adjustment and bandwidth optimization
+- **Security Features**: End-to-end encryption and authentication
+- **Analytics Dashboard**: Usage statistics and connection metrics
+- **Mobile App**: Native iOS and Android applications
 
-- Node.js 16+
-- Modern browser with camera access
-- 2GB RAM minimum
-- No GPU required (CPU inference)
+### Infrastructure
 
-## 🔧 Development
-
-```bash
-# Install dependencies
-npm install
-
-# Development mode with auto-reload
-npm run dev
-
-# Health check
-curl http://localhost:3000/health
-```
-
-## 📈 Performance Targets
-
-- **Latency**: <200ms end-to-end
-- **FPS**: 10-15 processing rate
-- **Memory**: <500MB server usage
-- **CPU**: <50% on modest laptops
-
-## 🌐 Browser Support
-
-- **Mobile**: Chrome (Android), Safari (iOS)
-- **Desktop**: Chrome, Firefox, Safari, Edge
-- **Requirements**: WebRTC, WebSocket, Canvas API
+- **Redis Integration**: Scalable session management
+- **Docker Support**: Container deployment options
+- **CDN Integration**: Global content delivery
+- **Load Balancing**: Multi-region deployment support
