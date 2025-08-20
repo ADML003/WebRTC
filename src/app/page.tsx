@@ -187,22 +187,22 @@ export default function BrowserViewer() {
         try {
           // Check for answer
           const answerResponse = await fetch(
-            `/api/signaling?type=answer&deviceId=${deviceId}&sessionId=${currentSessionIdRef.current}`
+            `/api/signaling?type=poll-answer&sessionId=${currentSessionIdRef.current}`
           );
           const answerData = await answerResponse.json();
 
-          if (answerData.success && answerData.answer) {
+          if (answerData.answer) {
             console.log("📥 Received answer");
             await pc.setRemoteDescription(answerData.answer);
           }
 
           // Check for ICE candidates
           const iceResponse = await fetch(
-            `/api/signaling?type=ice-candidates&deviceId=${deviceId}&sessionId=${currentSessionIdRef.current}`
+            `/api/signaling?type=poll-ice&sessionId=${currentSessionIdRef.current}`
           );
           const iceData = await iceResponse.json();
 
-          if (iceData.success && iceData.candidates) {
+          if (iceData.candidates && iceData.candidates.length > 0) {
             for (const candidate of iceData.candidates) {
               await pc.addIceCandidate(candidate);
             }

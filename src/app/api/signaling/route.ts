@@ -209,11 +209,17 @@ export async function GET(request: Request) {
         return Response.json({ candidates: [] });
 
       case "available-phones":
+        const now = Date.now();
+        const activePhoneTimeout = 2 * 60 * 1000; // 2 minutes for active phones
+        
         const availablePhones = Array.from(devices.entries())
-          .filter(([, device]) => device.type === "phone")
+          .filter(([, device]) => 
+            device.type === "phone" && 
+            (now - device.timestamp) < activePhoneTimeout
+          )
           .map(([id]) => id);
         console.log(
-          `Available phones requested: ${availablePhones.length} found`,
+          `Available phones requested: ${availablePhones.length} found (active in last 2 minutes)`,
           availablePhones
         );
         console.log("All devices:", Array.from(devices.entries()));

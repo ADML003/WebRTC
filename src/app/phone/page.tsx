@@ -51,6 +51,15 @@ export default function PhoneCamera() {
     };
 
     registerPhone();
+
+    // Keep phone alive with periodic re-registration
+    const heartbeatInterval = setInterval(() => {
+      registerPhone();
+    }, 60000); // Re-register every 60 seconds
+
+    return () => {
+      clearInterval(heartbeatInterval);
+    };
   }, [phoneId, isClient]);
 
   const getVideoConstraints = () => {
@@ -155,12 +164,12 @@ export default function PhoneCamera() {
     const pollOffers = async () => {
       try {
         const response = await fetch(
-          `/api/signaling?type=offer&deviceId=${phoneId}&sessionId=${phoneId}_browser`
+          `/api/signaling?type=poll-offer&deviceId=${phoneId}`
         );
         const data = await response.json();
 
-        if (data.success && data.offer) {
-          await handleOffer(data.offer);
+        if (data.sessionId && data.offer) {
+          await handleOffer(data.offer, data.sessionId, data.browser);
         }
       } catch (error) {
         console.error("Error polling for offers:", error);
@@ -171,9 +180,13 @@ export default function PhoneCamera() {
     pollingIntervalRef.current = setInterval(pollOffers, 1000);
   };
 
-  const handleOffer = async (offer: RTCSessionDescriptionInit) => {
+  const handleOffer = async (
+    offer: RTCSessionDescriptionInit, 
+    sessionId: string, 
+    browserId: string
+  ) => {
     try {
-      console.log("📥 Received offer from browser");
+      console.log("📥 Received offer from browser", browserId);
 
       // Create peer connection
       const pc = new RTCPeerConnection({
@@ -198,10 +211,8 @@ export default function PhoneCamera() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 type: "ice-candidate",
-                deviceId: phoneId,
-                targetId: "browser",
+                sessionId: sessionId,
                 data: {
-                  sessionId: `${phoneId}_browser`,
                   candidate: event.candidate,
                 },
               }),
@@ -223,16 +234,14 @@ export default function PhoneCamera() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "answer",
-          deviceId: phoneId,
-          targetId: "browser",
+          sessionId: sessionId,
           data: {
-            sessionId: `${phoneId}_browser`,
             answer: answer,
           },
         }),
       });
 
-      setConnectedBrowser("browser");
+      setConnectedBrowser(browserId);
       setStatus("🔴 Live streaming to browser");
       console.log("📤 Answer sent to browser");
     } catch (error) {
