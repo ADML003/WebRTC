@@ -7,10 +7,10 @@
       "maxDuration": 10
     }
   },
-  "routes": [
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "/webrtc-nextjs/$1"
+      "source": "/(.*)",
+      "destination": "/webrtc-nextjs/$1"
     }
   ],
   "headers": [
