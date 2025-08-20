@@ -27,7 +27,12 @@ declare global {
 const sessions = globalThis.globalSessions ?? new Map<string, Session>();
 const devices = globalThis.globalDevices ?? new Map<string, Device>();
 
+// Always assign to global in development to ensure persistence
 if (process.env.NODE_ENV === "development") {
+  globalThis.globalSessions = sessions;
+  globalThis.globalDevices = devices;
+} else {
+  // In production, still maintain reference for this instance
   globalThis.globalSessions = sessions;
   globalThis.globalDevices = devices;
 }
@@ -208,8 +213,10 @@ export async function GET(request: Request) {
           .filter(([, device]) => device.type === "phone")
           .map(([id]) => id);
         console.log(
-          `Available phones requested: ${availablePhones.length} found`
+          `Available phones requested: ${availablePhones.length} found`,
+          availablePhones
         );
+        console.log("All devices:", Array.from(devices.entries()));
         return Response.json({ phones: availablePhones });
 
       case "ping":

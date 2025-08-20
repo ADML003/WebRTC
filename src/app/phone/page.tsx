@@ -490,7 +490,12 @@ export default function PhoneCamera() {
                   <span className="bg-blue-500/20 text-blue-400 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">
                     3
                   </span>
-                  <span>Note your Device ID: <strong className="text-blue-400">{phoneId.slice(-8)}</strong></span>
+                  <span>
+                    Note your Device ID:{" "}
+                    <strong className="text-blue-400">
+                      {phoneId.slice(-8)}
+                    </strong>
+                  </span>
                 </li>
               </ol>
             </div>
@@ -503,7 +508,12 @@ export default function PhoneCamera() {
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="text-blue-400">�</span>
-                  <span>Look for device ID <strong className="text-blue-400">{phoneId.slice(-8)}</strong></span>
+                  <span>
+                    Look for device ID{" "}
+                    <strong className="text-blue-400">
+                      {phoneId.slice(-8)}
+                    </strong>
+                  </span>
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="text-blue-400">�</span>

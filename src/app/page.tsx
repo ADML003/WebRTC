@@ -48,7 +48,7 @@ export default function BrowserViewer() {
     const registerAndPoll = async () => {
       try {
         // Register as browser
-        await fetch("/api/signaling", {
+        const response = await fetch("/api/signaling", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -57,6 +57,14 @@ export default function BrowserViewer() {
             data: { deviceType: "browser" },
           }),
         });
+
+        const registrationData = await response.json();
+        console.log("🌐 Browser registered:", registrationData);
+
+        // Set initial available phones from registration response
+        if (registrationData.availablePhones) {
+          setAvailablePhones(registrationData.availablePhones);
+        }
 
         setConnectionStatus("Connected to server");
 
@@ -67,9 +75,8 @@ export default function BrowserViewer() {
               `/api/signaling?type=available-phones`
             );
             const data = await response.json();
-            if (data.success) {
-              setAvailablePhones(data.phones || []);
-            }
+            console.log("📱 Phones polling result:", data);
+            setAvailablePhones(data.phones || []);
           } catch (error) {
             console.error("Error polling phones:", error);
           }
@@ -635,7 +642,9 @@ export default function BrowserViewer() {
                             }`}
                           ></div>
                           <span className="text-xs text-slate-400">
-                            {connectedPhone === phoneId ? "Connected" : "Available"}
+                            {connectedPhone === phoneId
+                              ? "Connected"
+                              : "Available"}
                           </span>
                         </div>
                       </div>
